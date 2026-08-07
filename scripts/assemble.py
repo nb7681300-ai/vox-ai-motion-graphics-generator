@@ -339,7 +339,6 @@ def run(project_dir):
 
     caption_path = os.path.join(project_dir, "caption.txt")
     with open(caption_path, "w", encoding="utf-8") as cap_f:
-        cap_f.write(story_title + "\n")
         cap_f.write(description + "\n")
     print(f"Caption written  -> {caption_path}")
 
