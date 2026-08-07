@@ -18,6 +18,10 @@ def parse_content_md(content_path: str) -> dict:
     with open(content_path, "r", encoding="utf-8") as f:
         text = f.read()
 
+    # Auto-unescape backslash-escaped Markdown characters
+    # (common when AI output is copy-pasted with \#, \*\*, \---, \> etc.)
+    text = re.sub(r'\\([#*\->`|!\[\]()_~{}])', r'\1', text)
+
     # Extract overall title from H1 (single #)
     h1_match = re.search(r'^#\s+(.+)$', text, re.MULTILINE)
     if h1_match:
