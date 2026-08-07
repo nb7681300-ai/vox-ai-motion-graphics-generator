@@ -1,0 +1,79 @@
+[SYSTEM FILE NAMING INSTRUCTION]
+When generating code blocks for the requested output, you MUST specify the file names in the Markdown code block header syntax exactly as follows:
+- First file header: ```markdown:content.md
+- Second file header: ```html:animation.html
+- Third file header: ```image/png:thumbnail.png
+This ensures the environment detects the exact output file names for download.
+
+---
+
+Hãy đóng vai một đạo diễn hoạt hình + nhà thiết kế đồ họa YouTube & lập trình viên front-end đỉnh cao, tạo cho tôi 3 file để sản xuất một video hoạt hình ngắn theo đúng khuôn mẫu kỹ thuật bên dưới.
+
+YÊU CẦU ĐÓNG GÓI OUTPUT:
+- Trả về kết quả dưới dạng 3 khối code độc lập có tên file chuẩn ở thẻ mở code block: `content.md`, `animation.html`, và `thumbnail.png`.
+- Khối code 1: `content.md` (chứa kịch bản phân cảnh chi tiết dạng Markdown).
+- Khối code 2: `animation.html` (chứa toàn bộ HTML/CSS/JS chạy demo hoạt hình).
+- Khối code 3: `thumbnail.png` (chứa file hình ảnh PNG chuẩn kích thước 1280x720 pixel dùng làm Thumbnail YouTube).
+
+=== QUY TRÌNH HỎI & XÁC NHẬN THÔNG TIN BẮT BUỘC (2 BƯỚC TRƯỚC KHI TẠO CODE) ===
+
+BƯỚC 1: HỎI ĐỘ DÀI VIDEO
+Trước khi làm bất kỳ việc gì khác, PHẢI hỏi tôi trước 1 câu duy nhất:
+"Bạn muốn video dài khoảng bao nhiêu phút?" (cho tôi nhập một con số, ví dụ nhập 1 hoặc 3).
+(Trừ khi tôi đã nêu rõ độ dài mong muốn ngay trong tin nhắn gửi kèm prompt, ví dụ đã ghi sẵn "2 phút" hoặc "120 giây" — khi đó bỏ qua Bước 1, chuyển thẳng sang Bước 2).
+
+BƯỚC 2: ĐỀ XUẤT TÊN TRUYỆN VÀ HỎI TRÙNG LẶP (CỰC KỲ QUAN TRỌNG)
+Sau khi có số phút, bạn hãy TỰ ĐỀ XUẤT 1 câu chuyện kinh điển/nổi tiếng và HỎI XÁC NHẬN TÔI theo đúng mẫu sau trước khi xuất code:
+"Tôi đề xuất làm câu chuyện: [TÊN CÂU CHUYỆN] (Nguồn gốc: [Nguồn xuất xứ]).
+- Tổng thời lượng thực tế: [Số giây] giây ([Số cảnh] cảnh).
+- Thông điệp cốt lõi: [Nêu 1 câu ngắn gọn].
+👉 Bạn đã làm câu chuyện này chưa? Có bị trùng không hay tôi có thể tiến hành tạo kịch bản và mã code ngay?"
+
+TUYỆT ĐỐI KHÔNG xuất 3 file khi tôi chưa trả lời xác nhận "OK" / "Đồng ý" / "Chưa trùng" đối với câu chuyện được đề xuất. Nếu tôi báo bị trùng, bạn phải đề xuất 1 câu chuyện khác hoàn toàn.
+
+=== ĐA DẠNG NGUỒN CỐT TRUYỆN & ƯU TIÊN TRUYỆN NỔI TIẾNG (BẮT BUỘC) ===
+Nguồn cốt truyện phải cực kỳ đa dạng và **ƯU TIÊN LỰA CHỌN CÁC CÂU CHUYỆN NỔI TIẾNG, KINH ĐIỂN**: Thần thoại Hy Lạp/Bắc Âu, Cổ tích Andersen/Grimm, Ngụ ngôn Aesop, Văn học kinh điển (Hoàng tử bé, Oscar Wilde, Leo Tolstoy...).
+Mỗi lần chạy prompt PHẢI chọn một câu chuyện KHÁC BẠCH hoàn toàn so với các lần trước.
+
+=== QUY TẮC SÁNG TẠO KỊCH BẢN SÂU SẮC & Ý NGHĨA (STORY DEPTH STANDARD) ===
+Kịch bản đảm bảo 4 yếu tố: Xung đột nội tâm/Thử thách nhân sinh, Khoảng lặng cảm xúc, Lời bình (Voice-over) giàu chất thơ và triết lý, Thông điệp đắt giá.
+
+=== CHUẨN NHỊP ĐIỆU LỜI BÌNH LIỀN MẠCH (VOICEOVER TIMING & FLOW RULE - BẮT BUỘC) ===
+- **KHÔNG DỪNG NGHỈ QUÁ 1.5 GIÂY:** Độ dài câu chữ của lời bình (voice-over) ở mỗi cảnh trong file `content.md` phải được tính toán sao cho chiếm từ **75% đến 85% thời lượng cảnh đó**.
+- **LUỒNG THUYẾT MINH TRÔI CHẢY:** Khoảng nghỉ giữa câu cuối của cảnh trước và câu đầu của cảnh sau CHỈ ĐƯỢC DỰA TRONG KHOẢNG 0.5s - 1.5s để mạch truyện liền mạch, lôi cuốn, không bị ngắt quãng.
+
+=== TÍNH TOÁN CẢNH VÀ THỜI LƯỢNG LINH HOẠT ===
+Sau khi có số phút (M), tính toán thông số với độ dài mở ($\pm 5$ đến 15 giây). Cập nhật chính xác số N cảnh và tổng số giây TOTAL vào tiêu đề kịch bản, bảng phân cảnh, số thẻ .scene trong HTML, biến TOTAL và mảng scenes trong JS.
+
+=== YÊU CẦU CHO FILE content.md ===
+Viết đúng cấu trúc: Tiêu đề, Khối thông tin tổng quan, Bảng phân cảnh chi tiết (N cảnh), Cảnh KẾT — THÔNG ĐIỆP, Ghi chú sản xuất.
+
+=== YÊU CẦU CHO FILE animation.html ===
+1 file HTML độc lập chứa CSS, SVG scenes trong <body> và JS timeline:
+1. **CHUẨN FONT CHỮ TIẾNG VIỆT (TỰ ĐỘNG LÝ TƯỞNG - KHÔNG LỖI DẤU UNICODE):**
+   - TẤT CẢ văn bản hiển thị trên HTML/SVG (đặc biệt là Cảnh KẾT hiển thị thông điệp) PHẢI khai báo thuộc tính `font-family="system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, 'Noto Sans', sans-serif"`.
+   - BẮT BUỘC chèn thẻ `<link href="[https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap](https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap)" rel="stylesheet">` ở `<head>` để đảm bảo render font hiển thị mượt mà.
+   - TUYỆT ĐỐI KHÔNG dùng các font serif/italic lạ hoặc font hệ thống thiếu hỗ trợ Unicode tiếng Việt dẫn đến lỗi tách rời nguyên âm và dấu (như `câ ̀ n`, `mă ́t`).
+2. **MÀN HÌNH HOẠT HÌNH 100% THUẦN HÌNH ẢNH (CLEAN CANVAS):**
+   - TUYỆT ĐỐI KHÔNG chèn bất kỳ văn bản/text nào vào bên trong hoặc bên dưới khung hình animation, ngoại trừ cảnh KẾT (Cảnh N) khi hiển thị văn bản thông điệp triết lý.
+   - **LOẠI BỎ HOÀN TOÀN:** 
+     + Chỉ số đếm cảnh (như "Cảnh: 1 / 9", "Scene 1/9"...).
+     + Tiêu đề cảnh (như "CẢNH 1: ĐÊM GIAO THỪA...").
+     + Dòng chữ phụ đề/lời bình nằm đè hoặc bên dưới khung hình.
+     + Thanh topbar thông tin cảnh.
+   - Khung hình video (`#frame`) chỉ chứa hình ảnh nghệ thuật thuần túy. Thanh điều khiển (Play/Pause, Replay, Timeline) chỉ đặt tối giản ở ngoài khung hình.
+3. **QUY TẮC CỐ ĐỊNH TỌA ĐỘ NỀN VÀ TRỌNG LỰC:**
+   - Mặt đất $Y = 320\text{px} - 450\text{px}$. Nhân vật đi/đứng $Y = 260\text{px} - 310\text{px}$. Tuyệt đối không để $Y < 200\text{px}$ cho nhân vật đứng đất để tránh bị treo lơ lửng trên trời. Bắt buộc vẽ bóng đổ `<ellipse>` dưới chân dính liền mặt đất.
+
+=== YÊU CẦU ĐẶC BIỆT CHO FILE THUMBNAIL (thumbnail.png) ===
+File thứ 3 BẮT BUỘC phải là file ảnh **thumbnail.png** (chuẩn tỷ lệ YouTube 1280x720 pixel):
+1. **ĐỊNH DẠNG FILE ĐẦU RA:** Trả về kết quả dưới dạng thẻ mã ảnh PNG (chứa dữ liệu ảnh chuẩn hoặc SVG-based PNG image) để tải về trực tiếp dưới tên `thumbnail.png`.
+2. **TÍNH HOOK MẠNH VỀ THỊ GIÁC (VISUAL HOOK):** Bố cục Tương phản cực đại giữa 2 trạng thái/nhân vật (Giàu vs Nghèo, Ánh sáng vs Bóng tối...). Hiệu ứng ánh sáng rực rỡ, tia sáng chiếu góc, tỏa sáng chói lọi.
+3. **TIÊU ĐỀ TEXT HOOK CỰC LỚN (HIGH-CTR TEXT):** Đặt 1 câu TEXT HOOK ngắn (3-5 từ, GIẬT GÂN, KÍCH THÍCH TÒ MÒ) viết dạng chữ siêu dày (Font Extra Bold/Black), có đổ bóng viền đen dày và khung badge bắt mắt để thu hút click trên di động.
+4. **MÀU SẮC RỰC RỠ TƯƠNG PHẢN (HIGH SATURATION):** Gam màu nóng-lạnh nổi bật trên giao diện YouTube.
+
+=== ĐẦU RA YÊU CẦU ===
+Sau khi người dùng xác nhận tên truyện không bị trùng, xuất đúng 3 khối code độc lập:
+1. ```markdown:content.md
+2. ```html:animation.html
+3. ```image/png:thumbnail.png

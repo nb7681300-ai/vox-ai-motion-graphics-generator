@@ -228,30 +228,52 @@ def download(url: str, dest: str) -> str:
         raise MuapiError(f"Download failed for {url} -> {dest}: {e}")
 
 
-def chat(messages: list, model: str = "gpt-4o-mini", **params) -> str:
-    """Chat completion request using OPENAI_API_KEY if available."""
-    openai_key = os.environ.get("OPENAI_API_KEY")
-    if not openai_key:
-        raise MuapiError("OPENAI_API_KEY is not set in environment.")
+def chat(messages: list, model: str = None, **params) -> str:
+    """Chat completion — routes to OpenRouter (free tier) or OpenAI.
 
-    url = "https://api.openai.com/v1/chat/completions"
+    Priority:
+      1. OPENROUTER_API_KEY  → https://openrouter.ai/api/v1  (Gemini Flash free tier)
+      2. OPENAI_API_KEY      → https://api.openai.com/v1
+    """
+    _load_env()
+    or_key = os.environ.get("OPENROUTER_API_KEY")
+    oa_key = os.environ.get("OPENAI_API_KEY")
+
+    if or_key:
+        resolved_model = model or os.environ.get("LLM_MODEL", "google/gemini-flash-1.5")
+        endpoint = "https://openrouter.ai/api/v1/chat/completions"
+        headers = {
+            "Authorization": f"Bearer {or_key}",
+            "Content-Type": "application/json",
+            "HTTP-Referer": "https://github.com/vox-ai-motion-graphics-generator",
+        }
+    elif oa_key:
+        resolved_model = model or os.environ.get("LLM_MODEL", "gpt-4o-mini")
+        endpoint = "https://api.openai.com/v1/chat/completions"
+        headers = {
+            "Authorization": f"Bearer {oa_key}",
+            "Content-Type": "application/json",
+        }
+    else:
+        raise MuapiError(
+            "No LLM key found. Set OPENROUTER_API_KEY (free tier available at openrouter.ai) "
+            "or OPENAI_API_KEY."
+        )
+
     req = urllib.request.Request(
-        url,
-        data=json.dumps({"model": model, "messages": messages, **params}).encode(),
-        headers={
-            "Authorization": f"Bearer {openai_key}",
-            "Content-Type": "application/json"
-        },
-        method="POST"
+        endpoint,
+        data=json.dumps({"model": resolved_model, "messages": messages, **params}).encode(),
+        headers=headers,
+        method="POST",
     )
     try:
         with urllib.request.urlopen(req, timeout=120) as r:
             resp = json.load(r)
             return resp["choices"][0]["message"]["content"]
     except urllib.error.HTTPError as e:
-        raise MuapiError(f"OpenAI chat completion failed: {e.code} - {e.read().decode()[:400]}") from e
+        raise MuapiError(f"LLM chat failed ({endpoint}): {e.code} - {e.read().decode()[:400]}") from e
     except Exception as e:
-        raise MuapiError(f"OpenAI chat completion failed: {e}") from e
+        raise MuapiError(f"LLM chat failed: {e}") from e
 
 
 if __name__ == "__main__":

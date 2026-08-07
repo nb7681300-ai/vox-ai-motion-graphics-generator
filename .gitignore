@@ -1,5 +1,6 @@
 # Outputs and generated files
 out/
+output/
 _seg/
 *.mp4
 *.mp3

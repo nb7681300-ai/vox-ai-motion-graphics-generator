@@ -1,0 +1,633 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sư Tử và Chuột Nhắt - Hoạt Hình Người Que Flat Vector</title>
+  <style>
+    :root {
+      --bg-color: #0f172a;
+      --frame-bg: #1e293b;
+      --sky-day: #bae6fd;
+      --sky-warm: #fef08a;
+      --grass-green: #4ade80;
+      --grass-dark: #16a34a;
+      --tree-trunk: #78350f;
+      --lion-body: #f59e0b;
+      --lion-mane: #b45309;
+      --mouse-color: #9ca3af;
+      --net-color: #f87171;
+      --accent: #f43f5e;
+      --text-white: #f8fafc;
+      --card-bg: rgba(15, 23, 42, 0.85);
+    }
+
+    /* Font gia đình chuẩn tiếng Việt - Tuyệt đối không dùng Trebuchet MS */
+    html, body, svg, text {
+      font-family: 'Segoe UI', 'Arial', 'Helvetica Neue', 'Noto Sans', sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: var(--bg-color);
+      color: var(--text-white);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      padding: 20px;
+    }
+
+    #stage-wrap {
+      width: 100%;
+      max-width: 860px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      align-items: center;
+    }
+
+    #frame {
+      position: relative;
+      width: 100%;
+      aspect-ratio: 16 / 9;
+      background-color: #000;
+      border: 4px solid #334155;
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5), 0 8px 10px -6px rgba(0, 0, 0, 0.5);
+    }
+
+    #topbar {
+      position: absolute;
+      top: 12px;
+      left: 16px;
+      right: 16px;
+      z-index: 20;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    #scene-tag {
+      background: var(--card-bg);
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-size: 13px;
+      font-weight: 600;
+      letter-spacing: 0.5px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      white-space: nowrap;
+    }
+
+    #progress-track {
+      flex: 1;
+      height: 8px;
+      background: rgba(255, 255, 255, 0.2);
+      border-radius: 4px;
+      overflow: hidden;
+    }
+
+    #progress-bar {
+      height: 100%;
+      width: 0%;
+      background: #38bdf8;
+      transition: width 0.1s linear;
+    }
+
+    .scene {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      opacity: 0;
+      transition: opacity 0.5s ease-in-out;
+      pointer-events: none;
+    }
+
+    .scene.active {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    svg {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+
+    #caption {
+      position: absolute;
+      bottom: 16px;
+      left: 20px;
+      right: 20px;
+      z-index: 20;
+      text-align: center;
+    }
+
+    #caption-text {
+      display: inline-block;
+      background: var(--card-bg);
+      padding: 8px 16px;
+      border-radius: 8px;
+      font-size: 15px;
+      line-height: 1.4;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      backdrop-filter: blur(4px);
+    }
+
+    #controls {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      background: #1e293b;
+      padding: 8px 20px;
+      border-radius: 30px;
+      border: 1px solid #334155;
+    }
+
+    button {
+      background: #3b82f6;
+      color: white;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 16px;
+      cursor: pointer;
+      font-weight: 600;
+      font-size: 14px;
+      transition: background 0.2s;
+    }
+
+    button:hover {
+      background: #2563eb;
+    }
+
+    #timer {
+      font-family: monospace;
+      font-size: 14px;
+      color: #94a3b8;
+    }
+
+    /* ==========================================
+       CSS ANIMATIONS (Quy tắc tên: [nhân vật]-[hành động])
+       ========================================== */
+    
+    /* Cảnh 1: Thở & Zzz */
+    .lion-breathe {
+      animation: lion-breathe-anim 2s infinite ease-in-out;
+      transform-origin: 320px 280px;
+    }
+    @keyframes lion-breathe-anim {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.03, 0.98); }
+    }
+
+    .zzz1 { animation: zzz-anim 2.5s infinite linear; animation-delay: 0s; }
+    .zzz2 { animation: zzz-anim 2.5s infinite linear; animation-delay: 0.8s; }
+    .zzz3 { animation: zzz-anim 2.5s infinite linear; animation-delay: 1.6s; }
+    @keyframes zzz-anim {
+      0% { opacity: 0; transform: translate(0, 0) scale(0.5); }
+      50% { opacity: 1; }
+      100% { opacity: 0; transform: translate(30px, -40px) scale(1.2); }
+    }
+
+    /* Cảnh 2: Chạy & Rung sợ */
+    .mouse-run-scene2 {
+      animation: mouse-run-anim 3s forwards ease-out;
+    }
+    @keyframes mouse-run-anim {
+      0% { transform: translateX(0px); }
+      50% { transform: translateX(180px); }
+      100% { transform: translateX(230px) translateY(-50px); }
+    }
+
+    .mouse-shake {
+      animation: shake-anim 0.2s infinite;
+      transform-origin: center;
+    }
+    @keyframes shake-anim {
+      0%, 100% { transform: rotate(0deg); }
+      25% { transform: rotate(-5deg); }
+      75% { transform: rotate(5deg); }
+    }
+
+    /* Cảnh 3: Chuột van xin */
+    .mouse-beg {
+      animation: beg-anim 0.6s infinite alternate ease-in-out;
+      transform-origin: 360px 240px;
+    }
+    @keyframes beg-anim {
+      0% { transform: translateY(0) rotate(0deg); }
+      100% { transform: translateY(-8px) rotate(-10deg); }
+    }
+
+    /* Cảnh 4: Cười & Tha */
+    .lion-laugh {
+      animation: laugh-anim 0.4s infinite alternate ease-in-out;
+      transform-origin: 300px 220px;
+    }
+    @keyframes laugh-anim {
+      0% { transform: scale(1); }
+      100% { transform: scale(1.05, 0.95) rotate(2deg); }
+    }
+
+    .mouse-flee {
+      animation: flee-anim 2s forwards ease-in 2s;
+    }
+    @keyframes flee-anim {
+      0% { transform: translateX(0); }
+      100% { transform: translateX(350px); }
+    }
+
+    /* Cảnh 5: Bẫy sập & Giãy giụa */
+    .net-drop {
+      animation: net-drop-anim 1s forwards ease-bounce;
+    }
+    @keyframes net-drop-anim {
+      0% { transform: translateY(-200px); }
+      100% { transform: translateY(0); }
+    }
+
+    .lion-struggle {
+      animation: struggle-anim 0.5s infinite alternate ease-in-out;
+      transform-origin: 400px 260px;
+    }
+    @keyframes struggle-anim {
+      0% { transform: rotate(-3deg) scale(0.98); }
+      100% { transform: rotate(3deg) scale(1.02); }
+    }
+
+    /* Cảnh 6: Cắn lưới */
+    .mouse-gnaw {
+      animation: gnaw-anim 0.3s infinite alternate ease-in-out;
+      transform-origin: 340px 270px;
+    }
+    @keyframes gnaw-anim {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(12deg); }
+    }
+
+    .net-break {
+      animation: net-break-anim 1s forwards 4s;
+    }
+    @keyframes net-break-anim {
+      0% { opacity: 1; transform: scale(1); }
+      100% { opacity: 0.2; transform: scale(1.2) translateY(30px); }
+    }
+
+    /* Cảnh 7: Kết & Vẫy tay */
+    .sun-glow {
+      animation: sun-anim 4s infinite alternate ease-in-out;
+      transform-origin: 400px 80px;
+    }
+    @keyframes sun-anim {
+      0% { transform: scale(0.95); opacity: 0.8; }
+      100% { transform: scale(1.1); opacity: 1; }
+    }
+
+    .hand-wave {
+      animation: wave-anim 0.8s infinite alternate ease-in-out;
+      transform-origin: bottom center;
+    }
+    @keyframes wave-anim {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(20deg); }
+    }
+
+    .message-card {
+      animation: card-appear 1.2s forwards ease-out 1s;
+      opacity: 0;
+      transform: scale(0.8);
+      transform-origin: center;
+    }
+    @keyframes card-appear {
+      100% { opacity: 1; transform: scale(1); }
+    }
+  </style>
+</head>
+<body>
+
+  <div id="stage-wrap">
+    <div id="frame">
+      
+      <div id="topbar">
+        <div id="scene-tag">Cảnh 1/7</div>
+        <div id="progress-track">
+          <div id="progress-bar"></div>
+        </div>
+      </div>
+
+      <div class="scene active" id="scene1">
+        <svg viewBox="0 0 800 450">
+          <rect width="800" height="450" fill="var(--sky-day)" />
+          <path d="M 0 320 Q 200 280 400 320 T 800 300 L 800 450 L 0 450 Z" fill="var(--grass-green)" />
+          <rect x="120" y="160" width="40" height="180" rx="10" fill="var(--tree-trunk)" />
+          <circle cx="140" cy="140" r="80" fill="var(--grass-dark)" />
+          
+          <g class="lion-breathe" transform="translate(200, 220)">
+            <ellipse cx="120" cy="80" rx="70" ry="40" fill="var(--lion-body)" />
+            <circle cx="70" cy="50" r="45" fill="var(--lion-mane)" />
+            <circle cx="75" cy="55" r="30" fill="var(--lion-body)" />
+            <path d="M 60 55 Q 68 63 75 55" stroke="#78350f" stroke-width="3" fill="none" />
+            <rect x="150" y="100" width="30" height="15" rx="7" fill="var(--lion-body)" />
+            <path d="M 190 80 Q 220 70 210 100" stroke="var(--lion-body)" stroke-width="6" fill="none" />
+          </g>
+
+          <g transform="translate(260, 210)">
+            <text class="zzz1" x="0" y="0" fill="#0284c7" font-size="24" font-weight="bold" font-family="Segoe UI, Arial, sans-serif">Z</text>
+            <text class="zzz2" x="15" y="-15" fill="#0284c7" font-size="20" font-weight="bold" font-family="Segoe UI, Arial, sans-serif">z</text>
+            <text class="zzz3" x="28" y="-28" fill="#0284c7" font-size="16" font-weight="bold" font-family="Segoe UI, Arial, sans-serif">z</text>
+          </g>
+        </svg>
+      </div>
+
+      <div class="scene" id="scene2">
+        <svg viewBox="0 0 800 450">
+          <rect width="800" height="450" fill="var(--sky-day)" />
+          <path d="M 0 320 Q 200 280 400 320 T 800 300 L 800 450 L 0 450 Z" fill="var(--grass-green)" />
+          
+          <g transform="translate(260, 180)">
+            <ellipse cx="120" cy="110" rx="70" ry="40" fill="var(--lion-body)" />
+            <circle cx="60" cy="60" r="50" fill="var(--lion-mane)" />
+            <circle cx="65" cy="65" r="35" fill="var(--lion-body)" />
+            <circle cx="50" cy="55" r="5" fill="#000" />
+            <circle cx="70" cy="55" r="5" fill="#000" />
+            <path d="M 45 45 L 60 52 M 75 45 L 62 52" stroke="#000" stroke-width="3" />
+            <ellipse cx="60" cy="80" rx="12" ry="16" fill="#78350f" />
+            <path d="M 100 100 Q 140 80 180 120" stroke="var(--lion-body)" stroke-width="14" stroke-linecap="round" fill="none" />
+          </g>
+
+          <g class="mouse-run-scene2" transform="translate(50, 270)">
+            <g class="mouse-shake">
+              <ellipse cx="30" cy="20" rx="20" ry="12" fill="var(--mouse-color)" />
+              <circle cx="15" cy="12" r="8" fill="#f43f5e" />
+              <circle cx="42" cy="16" r="3" fill="#000" />
+              <path d="M 10 20 Q -10 10 -15 25" stroke="var(--mouse-color)" stroke-width="3" fill="none" />
+            </g>
+          </g>
+        </svg>
+      </div>
+
+      <div class="scene" id="scene3">
+        <svg viewBox="0 0 800 450">
+          <rect width="800" height="450" fill="var(--sky-day)" />
+          <path d="M 0 320 Q 200 280 400 320 T 800 300 L 800 450 L 0 450 Z" fill="var(--grass-green)" />
+          
+          <g transform="translate(200, 150)">
+            <circle cx="100" cy="100" r="60" fill="var(--lion-mane)" />
+            <circle cx="105" cy="105" r="45" fill="var(--lion-body)" />
+            <circle cx="90" cy="95" r="6" fill="#000" />
+            <circle cx="120" cy="95" r="6" fill="#000" />
+            <path d="M 95 125 Q 105 115 115 125" stroke="#78350f" stroke-width="4" fill="none" />
+            <path d="M 140 140 Q 180 100 200 110" stroke="var(--lion-body)" stroke-width="16" stroke-linecap="round" fill="none" />
+          </g>
+
+          <g class="mouse-beg" transform="translate(410, 210)">
+            <ellipse cx="20" cy="30" rx="16" ry="22" fill="var(--mouse-color)" />
+            <circle cx="20" cy="10" r="12" fill="var(--mouse-color)" />
+            <circle cx="16" cy="8" r="2" fill="#000" />
+            <path d="M 10 25 L 0 20 M 10 28 L 0 25" stroke="#4b5563" stroke-width="3" stroke-linecap="round" />
+            <text x="-30" y="-15" fill="#dc2626" font-size="14" font-weight="bold" font-family="Segoe UI, Arial, sans-serif">Xin tha mạng!</text>
+          </g>
+        </svg>
+      </div>
+
+      <div class="scene" id="scene4">
+        <svg viewBox="0 0 800 450">
+          <rect width="800" height="450" fill="var(--sky-day)" />
+          <path d="M 0 320 Q 200 280 400 320 T 800 300 L 800 450 L 0 450 Z" fill="var(--grass-green)" />
+          
+          <g class="lion-laugh" transform="translate(180, 160)">
+            <circle cx="100" cy="100" r="60" fill="var(--lion-mane)" />
+            <circle cx="105" cy="105" r="45" fill="var(--lion-body)" />
+            <path d="M 80 90 Q 90 80 100 90 M 110 90 Q 120 80 130 90" stroke="#000" stroke-width="4" fill="none" />
+            <path d="M 85 110 Q 105 140 125 110 Z" fill="#78350f" />
+            <text x="130" y="60" fill="#b45309" font-size="22" font-weight="bold" font-family="Segoe UI, Arial, sans-serif">HA HA HA!</text>
+          </g>
+
+          <g class="mouse-flee" transform="translate(380, 300)">
+            <ellipse cx="20" cy="15" rx="18" ry="10" fill="var(--mouse-color)" />
+            <circle cx="32" cy="10" r="2" fill="#000" />
+            <path d="M 2 15 Q -10 20 -12 5" stroke="var(--mouse-color)" stroke-width="3" fill="none" />
+          </g>
+        </svg>
+      </div>
+
+      <div class="scene" id="scene5">
+        <svg viewBox="0 0 800 450">
+          <rect width="800" height="450" fill="#94a3b8" />
+          <path d="M 0 340 L 800 340 L 800 450 L 0 450 Z" fill="#475569" />
+          
+          <g class="lion-struggle" transform="translate(300, 200)">
+            <ellipse cx="100" cy="80" rx="65" ry="40" fill="var(--lion-body)" />
+            <circle cx="50" cy="50" r="45" fill="var(--lion-mane)" />
+            <circle cx="55" cy="55" r="30" fill="var(--lion-body)" />
+            <circle cx="45" cy="50" r="4" fill="#000" />
+            <circle cx="65" cy="50" r="4" fill="#000" />
+            <path d="M 45 70 Q 55 60 65 70" stroke="#000" stroke-width="3" fill="none" />
+          </g>
+
+          <g class="net-drop" transform="translate(280, 160)">
+            <path d="M 0 0 L 180 0 L 180 150 L 0 150 Z" fill="none" stroke="var(--net-color)" stroke-width="4" stroke-dasharray="15,10" />
+            <path d="M 0 30 L 180 30 M 0 60 L 180 60 M 0 90 L 180 90 M 0 120 L 180 120" stroke="var(--net-color)" stroke-width="3" />
+            <path d="M 30 0 L 30 150 M 60 0 L 60 150 M 90 0 L 90 150 M 120 0 L 120 150 M 150 0 L 150 150" stroke="var(--net-color)" stroke-width="3" />
+          </g>
+        </svg>
+      </div>
+
+      <div class="scene" id="scene6">
+        <svg viewBox="0 0 800 450">
+          <rect width="800" height="450" fill="var(--sky-day)" />
+          <path d="M 0 340 L 800 340 L 800 450 L 0 450 Z" fill="var(--grass-green)" />
+
+          <g transform="translate(300, 200)">
+            <ellipse cx="100" cy="80" rx="65" ry="40" fill="var(--lion-body)" />
+            <circle cx="50" cy="50" r="45" fill="var(--lion-mane)" />
+            <circle cx="55" cy="55" r="30" fill="var(--lion-body)" />
+          </g>
+
+          <g class="net-break" transform="translate(280, 160)">
+            <path d="M 0 0 L 180 0 L 180 150 L 0 150 Z" fill="none" stroke="var(--net-color)" stroke-width="4" stroke-dasharray="10,10" />
+          </g>
+
+          <g class="mouse-gnaw" transform="translate(250, 260)">
+            <ellipse cx="20" cy="15" rx="18" ry="10" fill="var(--mouse-color)" />
+            <circle cx="32" cy="10" r="2" fill="#000" />
+            <path d="M 35 12 L 45 15 L 35 18" stroke="#000" stroke-width="2" fill="none" />
+          </g>
+        </svg>
+      </div>
+
+      <div class="scene" id="scene7">
+        <svg viewBox="0 0 800 450">
+          <rect width="800" height="450" fill="var(--sky-warm)" />
+          
+          <circle class="sun-glow" cx="400" cy="80" r="60" fill="#fde047" opacity="0.6" />
+          <circle cx="400" cy="80" r="40" fill="#facc15" />
+
+          <path d="M 0 320 Q 400 280 800 320 L 800 450 L 0 450 Z" fill="var(--grass-green)" />
+
+          <g transform="translate(240, 180)">
+            <ellipse cx="100" cy="110" rx="60" ry="40" fill="var(--lion-body)" />
+            <circle cx="60" cy="60" r="45" fill="var(--lion-mane)" />
+            <circle cx="65" cy="65" r="30" fill="var(--lion-body)" />
+            <circle cx="55" cy="55" r="4" fill="#000" />
+            <circle cx="75" cy="55" r="4" fill="#000" />
+            <path d="M 55 75 Q 65 85 75 75" stroke="#000" stroke-width="3" fill="none" />
+            <path class="hand-wave" d="M 110 100 Q 140 70 150 90" stroke="var(--lion-body)" stroke-width="12" stroke-linecap="round" fill="none" />
+
+            <g transform="translate(45, 0)">
+              <ellipse cx="20" cy="15" rx="14" ry="18" fill="var(--mouse-color)" />
+              <circle cx="20" cy="0" r="10" fill="var(--mouse-color)" />
+              <circle cx="17" cy="-2" r="2" fill="#000" />
+              <path class="hand-wave" d="M 28 10 L 38 0" stroke="var(--mouse-color)" stroke-width="4" stroke-linecap="round" />
+            </g>
+          </g>
+
+          <g class="message-card" transform="translate(150, 60)">
+            <rect width="500" height="90" rx="16" fill="var(--card-bg)" stroke="#f59e0b" stroke-width="3" />
+            <text x="250" y="38" fill="#fef08a" font-size="18" font-weight="bold" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif">BÀI HỌC BẠN BÈ</text>
+            <text x="250" y="65" fill="#ffffff" font-size="14" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif">"Dù nhỏ bé, ai cũng có thể mang lại những trợ giúp to lớn!"</text>
+          </g>
+        </svg>
+      </div>
+
+      <div id="caption">
+        <span id="caption-text">Đang tải kịch bản...</span>
+      </div>
+
+    </div>
+
+    <div id="controls">
+      <button id="btn-replay">⟲ Phát lại</button>
+      <button id="btn-playpause">⏸ Tạm dừng</button>
+      <div id="timer">0.0s / 60s</div>
+    </div>
+  </div>
+
+  <script>
+    // Dữ liệu mảng 7 cảnh khớp đúng content.md và tổng thời lượng TOTAL = 60s
+    const TOTAL = 60;
+    const scenes = [
+      { id: 1, start: 0,  text: "Trong một khu rừng xanh tươi, Sư Tử chúa tể đang tận hưởng giấc ngủ trưa yên bình." },
+      { id: 2, start: 8,  text: "Bất ngờ, Chuột Nhắt vô tình chạy qua và làm phiền giấc ngủ của Sư Tử. Sư Tử nổi giận vơ lấy Chuột!" },
+      { id: 3, start: 16, text: "Chuột Nhắt sợ hãi xin tha: \"Xin Bệ hạ tha cho tôi! Biết đâu sau này tôi sẽ giúp được Bệ hạ!\"" },
+      { id: 4, start: 25, text: "Sư Tử cười lớn vì thấy vô lý, nhưng vốn rộng lượng, Sư Tử đã tha cho Chuột Nhắt đi." },
+      { id: 5, start: 33, text: "Vài ngày sau, Sư Tử vô tình sập bẫy thợ săn. Bị vướng chặt trong lưới, nó gầm lên bất lực." },
+      { id: 6, start: 42, text: "Nghe tiếng kêu, Chuột Nhắt lao tới. Bằng hàm răng sắc nhọn, Chuột cắn đứt từng mắt lưới cứu Sư Tử." },
+      { id: 7, start: 51, text: "Sư Tử vô cùng biết ơn. Từ đó, họ trở thành bạn tốt. Bạn thấy đấy, dù nhỏ bé, ai cũng có thể giúp đỡ người khác!" }
+    ];
+
+    let startTime = null;
+    let pausedTime = 0;
+    let isPaused = false;
+    let animationFrameId = null;
+    let lastSceneId = -1;
+
+    const elProgressBar = document.getElementById('progress-bar');
+    const elSceneTag = document.getElementById('scene-tag');
+    const elCaptionText = document.getElementById('caption-text');
+    const elTimer = document.getElementById('timer');
+    const btnPlayPause = document.getElementById('btn-playpause');
+    const btnReplay = document.getElementById('btn-replay');
+
+    function getCurrentSceneIndex(elapsed) {
+      for (let i = scenes.length - 1; i >= 0; i--) {
+        if (elapsed >= scenes[i].start) return i;
+      }
+      return 0;
+    }
+
+    function activateScene(sceneIndex) {
+      const sceneData = scenes[sceneIndex];
+      if (sceneData.id === lastSceneId) return;
+
+      lastSceneId = sceneData.id;
+
+      // Cập nhật DOM Active
+      document.querySelectorAll('.scene').forEach((el, idx) => {
+        if (idx === sceneIndex) {
+          el.classList.add('active');
+        } else {
+          el.classList.remove('active');
+        }
+      });
+
+      // Cập nhật văn bản
+      elSceneTag.textContent = `Cảnh ${sceneData.id}/${scenes.length}`;
+      elCaptionText.textContent = sceneData.text;
+    }
+
+    function tick(timestamp) {
+      if (!startTime) startTime = timestamp;
+
+      if (!isPaused) {
+        const elapsed = (timestamp - startTime - pausedTime) / 1000;
+        const currentClamped = Math.min(elapsed, TOTAL);
+
+        // Cập nhật thanh tiến trình & đồng hồ
+        const progressPercent = (currentClamped / TOTAL) * 100;
+        elProgressBar.style.width = `${progressPercent}%`;
+        elTimer.textContent = `${currentClamped.toFixed(1)}s / ${TOTAL}s`;
+
+        // Kích hoạt Cảnh
+        const currentIndex = getCurrentSceneIndex(currentClamped);
+        activateScene(currentIndex);
+
+        if (elapsed < TOTAL) {
+          animationFrameId = requestAnimationFrame(tick);
+        } else {
+          // Kết thúc
+          elTimer.textContent = `${TOTAL}.0s / ${TOTAL}s`;
+        }
+      }
+    }
+
+    function play() {
+      isPaused = false;
+      btnPlayPause.textContent = "⏸ Tạm dừng";
+      let pauseDuration = 0;
+      if (this.pauseStart) {
+        pauseDuration = performance.now() - this.pauseStart;
+        pausedTime += pauseDuration;
+        this.pauseStart = null;
+      }
+      animationFrameId = requestAnimationFrame(tick);
+    }
+
+    function pause() {
+      isPaused = true;
+      btnPlayPause.textContent = "▶ Tiếp tục";
+      this.pauseStart = performance.now();
+      if (animationFrameId) cancelAnimationFrame(animationFrameId);
+    }
+
+    btnPlayPause.addEventListener('click', () => {
+      if (isPaused) {
+        play();
+      } else {
+        pause();
+      }
+    });
+
+    btnReplay.addEventListener('click', () => {
+      if (animationFrameId) cancelAnimationFrame(animationFrameId);
+      startTime = null;
+      pausedTime = 0;
+      lastSceneId = -1;
+      isPaused = false;
+      btnPlayPause.textContent = "⏸ Tạm dừng";
+      animationFrameId = requestAnimationFrame(tick);
+    });
+
+    // Chạy tự động ngay khi mở file
+    animationFrameId = requestAnimationFrame(tick);
+  </script>
+</body>
+</html>

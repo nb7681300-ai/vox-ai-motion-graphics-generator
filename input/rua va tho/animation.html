@@ -1,0 +1,545 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<title>Rùa và Thỏ — Hoạt hình</title>
+<style>
+  :root{
+    --sky-1:#dff3ea;
+    --sky-2:#cdeadd;
+    --path:#e9d9b8;
+    --path-deep:#dfc79a;
+    --line:#25313a;
+    --rabbit:#f6efe4;
+    --rabbit-ear:#f2c9c9;
+    --turtle-shell:#4f9a5c;
+    --turtle-shell-2:#3c7a48;
+    --turtle-skin:#8fd18a;
+    --accent:#e0704b;
+    --card:#fffaf0;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;background:#111;font-family:'Trebuchet MS',Verdana,sans-serif;}
+  #stage-wrap{
+    width:100%;
+    max-width:900px;
+    margin:0 auto;
+    background:#111;
+    padding:20px 20px 30px;
+  }
+  #frame{
+    position:relative;
+    width:100%;
+    aspect-ratio:16/9;
+    background:linear-gradient(#dff3ea,#cdeadd 55%, #e9d9b8 55%, #dfc79a);
+    border-radius:14px;
+    overflow:hidden;
+    box-shadow:0 10px 30px rgba(0,0,0,.5);
+    border:3px solid #1c2a22;
+  }
+  svg{position:absolute;inset:0;width:100%;height:100%;}
+  .scene{
+    position:absolute;inset:0;
+    opacity:0;
+    transition:opacity .5s ease;
+    pointer-events:none;
+  }
+  .scene.active{opacity:1;}
+
+  /* ---- caption / voice-over ---- */
+  #caption{
+    position:absolute;
+    left:0;right:0;bottom:14px;
+    text-align:center;
+    padding:0 5%;
+  }
+  #caption span{
+    background:rgba(20,25,20,.72);
+    color:#fdf6e3;
+    font-size:clamp(12px,2.3vw,18px);
+    padding:8px 16px;
+    border-radius:10px;
+    line-height:1.35;
+    display:inline-block;
+  }
+
+  /* ---- top bar: scene counter + progress ---- */
+  #topbar{
+    position:absolute;top:10px;left:10px;right:10px;
+    display:flex;align-items:center;gap:8px;
+  }
+  #scene-tag{
+    background:var(--accent);color:#fff;font-weight:bold;
+    font-size:12px;padding:4px 10px;border-radius:20px;
+    white-space:nowrap;
+  }
+  #progress-track{
+    flex:1;height:6px;background:rgba(255,255,255,.5);border-radius:6px;overflow:hidden;
+  }
+  #progress-bar{
+    height:100%;width:0%;background:var(--accent);border-radius:6px;
+    transition:width .1s linear;
+  }
+
+  /* ---- controls ---- */
+  #controls{
+    max-width:900px;margin:14px auto 0;
+    display:flex;gap:10px;align-items:center;justify-content:center;
+  }
+  #controls button{
+    background:var(--accent);color:#fff;border:none;padding:10px 18px;
+    border-radius:8px;font-size:14px;cursor:pointer;font-weight:bold;
+  }
+  #controls button:hover{background:#c85c3a;}
+  #timer{color:#eee;font-size:13px;font-family:monospace;}
+
+  /* ================= CHARACTER ANIMATIONS ================= */
+
+  /* --- Scene 1: Tho bounce, Rua blink --- */
+  .rabbit-bounce{transform-origin:600px 330px;animation:rbounce 0.9s ease-in-out infinite;}
+  @keyframes rbounce{0%,100%{transform:translateY(0);}50%{transform:translateY(-16px);}}
+  .turtle-blink{animation:blink 3s ease-in-out infinite;}
+  @keyframes blink{0%,92%,100%{transform:scaleY(1);}96%{transform:scaleY(.1);}}
+
+  /* --- Scene 2: laugh + nod + flag --- */
+  .mouth-laugh{transform-origin:600px 300px;animation:laugh 0.5s ease-in-out infinite;}
+  @keyframes laugh{0%,100%{transform:scaleY(1);}50%{transform:scaleY(1.5);}}
+  .head-nod{transform-origin:220px 250px;animation:nod 1.2s ease-in-out infinite;}
+  @keyframes nod{0%,100%{transform:translateY(0) rotate(0deg);}50%{transform:translateY(6px) rotate(4deg);}}
+  .flag-wave{transform-origin:150px 150px;animation:flagwave 0.6s ease-in-out infinite;}
+  @keyframes flagwave{0%,100%{transform:rotate(-8deg);}50%{transform:rotate(8deg);}}
+
+  /* --- Scene 3: rabbit sprint away, turtle slow crawl --- */
+  .rabbit-run{animation:rabbitRun 6.5s ease-in forwards;}
+  @keyframes rabbitRun{
+    0%{transform:translateX(0);}
+    100%{transform:translateX(430px);}
+  }
+  .rabbit-leg-run{transform-origin:600px 350px;animation:legrun .18s linear infinite;}
+  @keyframes legrun{0%,100%{transform:rotate(20deg);}50%{transform:rotate(-30deg);}}
+  .dust{animation:dustpuff 0.4s ease-out infinite;}
+  @keyframes dustpuff{0%{opacity:.7;transform:scale(.6);}100%{opacity:0;transform:scale(1.6) translateX(-20px);}}
+  .turtle-inch{animation:turtleInch 6.5s linear forwards;}
+  @keyframes turtleInch{
+    0%{transform:translateX(0);}
+    100%{transform:translateX(60px);}
+  }
+  .turtle-leg{transform-origin:220px 350px;animation:turtlestep 1s ease-in-out infinite;}
+  @keyframes turtlestep{0%,100%{transform:rotate(6deg);}50%{transform:rotate(-6deg);}}
+
+  /* --- Scene 4: rabbit sleeping under tree --- */
+  .chest-breathe{transform-origin:520px 330px;animation:breathe 1.6s ease-in-out infinite;}
+  @keyframes breathe{0%,100%{transform:scale(1);}50%{transform:scale(1.06);}}
+  .zzz{animation:zzzfloat 2.4s ease-in infinite;}
+  @keyframes zzzfloat{0%{opacity:0;transform:translate(0,0) scale(.6);}20%{opacity:1;}100%{opacity:0;transform:translate(20px,-50px) scale(1.2);}}
+  .zzz2{animation-delay:.8s;}
+  .zzz3{animation-delay:1.6s;}
+
+  /* --- Scene 5: turtle steady walk past sleeping rabbit --- */
+  .turtle-walk{animation:turtleWalk 10s linear forwards;}
+  @keyframes turtleWalk{
+    0%{transform:translateX(0);}
+    100%{transform:translateX(520px);}
+  }
+  .turtle-leg-walk{transform-origin:150px 350px;animation:turtlestep2 0.9s ease-in-out infinite;}
+  @keyframes turtlestep2{0%,100%{transform:rotate(8deg);}50%{transform:rotate(-8deg);}}
+  .shell-bob{transform-origin:150px 300px;animation:shellbob 0.9s ease-in-out infinite;}
+  @keyframes shellbob{0%,100%{transform:translateY(0);}50%{transform:translateY(-4px);}}
+
+  /* --- Scene 6: turtle finish bounce, rabbit panic run --- */
+  .finish-bounce{animation:finishbounce 0.7s ease-in-out infinite;}
+  @keyframes finishbounce{0%,100%{transform:translateY(0) rotate(0deg);}50%{transform:translateY(-12px) rotate(-4deg);}}
+  .cheer-arm{transform-origin:150px 300px;animation:cheer 0.5s ease-in-out infinite;}
+  @keyframes cheer{0%,100%{transform:rotate(-20deg);}50%{transform:rotate(20deg);}}
+  .rabbit-panic{animation:panicRun 3s ease-out forwards;}
+  @keyframes panicRun{
+    0%{transform:translateX(-380px);}
+    100%{transform:translateX(0);}
+  }
+  .rabbit-leg-panic{transform-origin:600px 350px;animation:legrun .14s linear infinite;}
+  .head-shock{transform-origin:600px 280px;animation:shock 0.4s ease-in-out infinite;}
+  @keyframes shock{0%,100%{transform:translateY(0);}50%{transform:translateY(-5px);}}
+
+  /* --- Scene 7: turtle wave + sun --- */
+  .turtle-wave-leg{transform-origin:400px 300px;animation:tleg 0.7s ease-in-out infinite;}
+  @keyframes tleg{0%,100%{transform:rotate(-15deg);}50%{transform:rotate(25deg);}}
+  .sun-glow{animation:sunPulse 3s ease-in-out infinite;}
+  @keyframes sunPulse{0%,100%{opacity:.6;}50%{opacity:1;}}
+  .fade-in-text{animation:fadeText 1.2s ease-out forwards;}
+  @keyframes fadeText{0%{opacity:0;transform:translateY(10px) scale(.9);}100%{opacity:1;transform:translateY(0) scale(1);}}
+  .star-twinkle{animation:twinkle 1.4s ease-in-out infinite;}
+  @keyframes twinkle{0%,100%{opacity:.2;transform:scale(.8);}50%{opacity:1;transform:scale(1.2);}}
+</style>
+</head>
+<body>
+
+<div id="stage-wrap">
+  <div id="frame">
+
+    <!-- TOP BAR -->
+    <div id="topbar">
+      <div id="scene-tag">Cảnh 1/7</div>
+      <div id="progress-track"><div id="progress-bar"></div></div>
+    </div>
+
+    <!-- ============ SCENE 1: mo dau, gap nhau o vach xuat phat ============ -->
+    <div class="scene active" id="scene1">
+      <svg viewBox="0 0 800 450">
+        <rect x="0" y="330" width="800" height="120" fill="#a9d9a0"/>
+        <rect x="0" y="380" width="800" height="70" fill="var(--path)"/>
+        <g stroke="#3f6b45" stroke-width="6" fill="none">
+          <line x1="120" y1="330" x2="120" y2="230"/>
+          <circle cx="120" cy="210" r="34" fill="#5f9a5c" stroke="none"/>
+          <line x1="700" y1="330" x2="700" y2="240"/>
+          <circle cx="700" cy="220" r="30" fill="#5f9a5c" stroke="none"/>
+        </g>
+        <circle class="sun-glow" cx="700" cy="70" r="34" fill="#ffd76b"/>
+        <!-- start line -->
+        <rect x="390" y="380" width="10" height="70" fill="#fff" stroke="#25313a" stroke-width="2"/>
+
+        <!-- Turtle -->
+        <g transform="translate(230,340)">
+          <ellipse cx="0" cy="0" rx="46" ry="30" fill="var(--turtle-shell)" stroke="#25313a" stroke-width="4"/>
+          <path d="M-30 -8 Q0 -26 30 -8 Q0 6 -30 -8" fill="var(--turtle-shell-2)" stroke="#25313a" stroke-width="2"/>
+          <circle class="turtle-blink" cx="44" cy="-6" r="16" fill="var(--turtle-skin)" stroke="#25313a" stroke-width="3"/>
+          <circle cx="49" cy="-9" r="2" fill="#25313a"/>
+          <line x1="-30" y1="18" x2="-38" y2="34" stroke="#25313a" stroke-width="5" stroke-linecap="round"/>
+          <line x1="18" y1="22" x2="24" y2="38" stroke="#25313a" stroke-width="5" stroke-linecap="round"/>
+        </g>
+
+        <!-- Rabbit -->
+        <g class="rabbit-bounce" transform="translate(560,300)">
+          <ellipse cx="0" cy="30" rx="34" ry="38" fill="var(--rabbit)" stroke="#25313a" stroke-width="4"/>
+          <circle cx="0" cy="-24" r="26" fill="var(--rabbit)" stroke="#25313a" stroke-width="4"/>
+          <ellipse cx="-12" cy="-56" rx="8" ry="30" fill="var(--rabbit)" stroke="#25313a" stroke-width="3"/>
+          <ellipse cx="-12" cy="-52" rx="4" ry="20" fill="var(--rabbit-ear)"/>
+          <ellipse cx="12" cy="-56" rx="8" ry="30" fill="var(--rabbit)" stroke="#25313a" stroke-width="3"/>
+          <ellipse cx="12" cy="-52" rx="4" ry="20" fill="var(--rabbit-ear)"/>
+          <circle cx="-8" cy="-26" r="2.6" fill="#25313a"/>
+          <circle cx="8" cy="-26" r="2.6" fill="#25313a"/>
+          <path d="M-6 -14 Q0 -8 6 -14" stroke="#25313a" stroke-width="2.5" fill="none"/>
+          <line x1="-30" y1="60" x2="-38" y2="80" stroke="#25313a" stroke-width="6" stroke-linecap="round"/>
+          <line x1="30" y1="60" x2="38" y2="80" stroke="#25313a" stroke-width="6" stroke-linecap="round"/>
+        </g>
+      </svg>
+    </div>
+
+    <!-- ============ SCENE 2: thach dau ============ -->
+    <div class="scene" id="scene2">
+      <svg viewBox="0 0 800 450">
+        <rect x="0" y="330" width="800" height="120" fill="#a9d9a0"/>
+        <rect x="0" y="380" width="800" height="70" fill="var(--path)"/>
+
+        <!-- Squirrel referee with flag -->
+        <g transform="translate(120,300)">
+          <ellipse cx="0" cy="30" rx="20" ry="26" fill="#c98a4b" stroke="#25313a" stroke-width="3"/>
+          <circle cx="0" cy="-6" r="18" fill="#c98a4b" stroke="#25313a" stroke-width="3"/>
+          <circle cx="-5" cy="-8" r="2" fill="#25313a"/>
+          <circle cx="6" cy="-8" r="2" fill="#25313a"/>
+          <path d="M18 30 Q46 20 40 -20" fill="none" stroke="#c98a4b" stroke-width="10" stroke-linecap="round"/>
+          <g class="flag-wave" transform="translate(40,-20)">
+            <line x1="0" y1="0" x2="0" y2="-70" stroke="#8a5a2b" stroke-width="4"/>
+            <path d="M0 -70 L36 -60 L0 -50 Z" fill="var(--accent)" stroke="#25313a" stroke-width="2"/>
+          </g>
+        </g>
+
+        <!-- Rabbit laughing, pointing -->
+        <g transform="translate(220,270)">
+          <ellipse cx="0" cy="30" rx="34" ry="38" fill="var(--rabbit)" stroke="#25313a" stroke-width="4"/>
+          <circle cx="0" cy="-24" r="26" fill="var(--rabbit)" stroke="#25313a" stroke-width="4"/>
+          <ellipse cx="-12" cy="-56" rx="8" ry="30" fill="var(--rabbit)" stroke="#25313a" stroke-width="3"/>
+          <ellipse cx="-12" cy="-52" rx="4" ry="20" fill="var(--rabbit-ear)"/>
+          <ellipse cx="12" cy="-56" rx="8" ry="30" fill="var(--rabbit)" stroke="#25313a" stroke-width="3"/>
+          <ellipse cx="12" cy="-52" rx="4" ry="20" fill="var(--rabbit-ear)"/>
+          <circle cx="-8" cy="-26" r="2.6" fill="#25313a"/>
+          <circle cx="8" cy="-26" r="2.6" fill="#25313a"/>
+          <path class="mouth-laugh" d="M-8 -14 Q0 -2 8 -14" stroke="#25313a" stroke-width="2.5" fill="#c0392b"/>
+          <line x1="30" y1="52" x2="70" y2="40" stroke="#25313a" stroke-width="6" stroke-linecap="round"/>
+        </g>
+        <text x="270" y="180" font-size="26" fill="#c0392b" font-weight="bold">"Chậm như sên!"</text>
+
+        <!-- Turtle nodding -->
+        <g class="head-nod" transform="translate(560,340)">
+          <ellipse cx="0" cy="0" rx="46" ry="30" fill="var(--turtle-shell)" stroke="#25313a" stroke-width="4"/>
+          <path d="M-30 -8 Q0 -26 30 -8 Q0 6 -30 -8" fill="var(--turtle-shell-2)" stroke="#25313a" stroke-width="2"/>
+          <circle cx="44" cy="-6" r="16" fill="var(--turtle-skin)" stroke="#25313a" stroke-width="3"/>
+          <circle cx="49" cy="-9" r="2" fill="#25313a"/>
+          <path d="M40 0 Q48 4 54 0" stroke="#25313a" stroke-width="2" fill="none"/>
+        </g>
+      </svg>
+    </div>
+
+    <!-- ============ SCENE 3: xuat phat, tho vot nhanh ============ -->
+    <div class="scene" id="scene3">
+      <svg viewBox="0 0 800 450">
+        <rect x="0" y="330" width="800" height="120" fill="#a9d9a0"/>
+        <rect x="0" y="380" width="800" height="70" fill="var(--path)"/>
+        <rect x="390" y="380" width="10" height="70" fill="#fff" stroke="#25313a" stroke-width="2"/>
+
+        <!-- dust puffs -->
+        <g class="dust" transform="translate(300,400)"><circle r="10" fill="#c9b083"/></g>
+        <g class="dust" style="animation-delay:.15s" transform="translate(280,405)"><circle r="8" fill="#c9b083"/></g>
+
+        <!-- Turtle crawling slowly -->
+        <g class="turtle-inch" transform="translate(230,340)">
+          <ellipse cx="0" cy="0" rx="46" ry="30" fill="var(--turtle-shell)" stroke="#25313a" stroke-width="4"/>
+          <path d="M-30 -8 Q0 -26 30 -8 Q0 6 -30 -8" fill="var(--turtle-shell-2)" stroke="#25313a" stroke-width="2"/>
+          <circle cx="44" cy="-6" r="16" fill="var(--turtle-skin)" stroke="#25313a" stroke-width="3"/>
+          <circle cx="49" cy="-9" r="2" fill="#25313a"/>
+          <line class="turtle-leg" x1="-30" y1="18" x2="-38" y2="34" stroke="#25313a" stroke-width="5" stroke-linecap="round"/>
+          <line class="turtle-leg" x1="18" y1="22" x2="24" y2="38" stroke="#25313a" stroke-width="5" stroke-linecap="round"/>
+        </g>
+
+        <!-- Rabbit sprinting away -->
+        <g class="rabbit-run" transform="translate(340,300)">
+          <ellipse cx="0" cy="30" rx="34" ry="30" fill="var(--rabbit)" stroke="#25313a" stroke-width="4"/>
+          <circle cx="10" cy="-14" r="24" fill="var(--rabbit)" stroke="#25313a" stroke-width="4"/>
+          <ellipse cx="-2" cy="-44" rx="7" ry="26" fill="var(--rabbit)" stroke="#25313a" stroke-width="3" transform="rotate(-20 -2 -44)"/>
+          <ellipse cx="22" cy="-44" rx="7" ry="26" fill="var(--rabbit)" stroke="#25313a" stroke-width="3" transform="rotate(20 22 -44)"/>
+          <circle cx="18" cy="-16" r="2.4" fill="#25313a"/>
+          <line class="rabbit-leg-run" x1="-20" y1="54" x2="-40" y2="70" stroke="#25313a" stroke-width="6" stroke-linecap="round"/>
+          <line class="rabbit-leg-run" x1="20" y1="54" x2="40" y2="70" stroke="#25313a" stroke-width="6" stroke-linecap="round" style="animation-delay:.09s"/>
+        </g>
+      </svg>
+    </div>
+
+    <!-- ============ SCENE 4: tho ngu quen ============ -->
+    <div class="scene" id="scene4">
+      <svg viewBox="0 0 800 450">
+        <rect x="0" y="330" width="800" height="120" fill="#a9d9a0"/>
+        <rect x="0" y="380" width="800" height="70" fill="var(--path)"/>
+        <!-- shade tree -->
+        <line x1="560" y1="330" x2="560" y2="180" stroke="#3f6b45" stroke-width="10"/>
+        <circle cx="560" cy="150" r="70" fill="#5f9a5c"/>
+
+        <!-- sleeping rabbit -->
+        <g transform="translate(520,340)">
+          <g class="chest-breathe">
+            <ellipse cx="0" cy="0" rx="46" ry="28" fill="var(--rabbit)" stroke="#25313a" stroke-width="4"/>
+          </g>
+          <circle cx="-50" cy="-6" r="22" fill="var(--rabbit)" stroke="#25313a" stroke-width="4"/>
+          <ellipse cx="-62" cy="-32" rx="6" ry="20" fill="var(--rabbit)" stroke="#25313a" stroke-width="3" transform="rotate(-15 -62 -32)"/>
+          <ellipse cx="-40" cy="-32" rx="6" ry="20" fill="var(--rabbit)" stroke="#25313a" stroke-width="3" transform="rotate(15 -40 -32)"/>
+          <path d="M-58 -6 Q-50 -3 -42 -6" stroke="#25313a" stroke-width="2" fill="none"/>
+          <line x1="20" y1="20" x2="46" y2="30" stroke="#25313a" stroke-width="6" stroke-linecap="round"/>
+          <line x1="-4" y1="24" x2="10" y2="40" stroke="#25313a" stroke-width="6" stroke-linecap="round"/>
+        </g>
+        <text class="zzz" x="440" y="240" font-size="22" fill="#25313a" font-weight="bold">Z</text>
+        <text class="zzz zzz2" x="450" y="220" font-size="26" fill="#25313a" font-weight="bold">z</text>
+        <text class="zzz zzz3" x="462" y="200" font-size="30" fill="#25313a" font-weight="bold">z</text>
+      </svg>
+    </div>
+
+    <!-- ============ SCENE 5: rua ben bi vuot len ============ -->
+    <div class="scene" id="scene5">
+      <svg viewBox="0 0 800 450">
+        <rect x="0" y="330" width="800" height="120" fill="#a9d9a0"/>
+        <rect x="0" y="380" width="800" height="70" fill="var(--path)"/>
+        <line x1="560" y1="330" x2="560" y2="180" stroke="#3f6b45" stroke-width="10"/>
+        <circle cx="560" cy="150" r="70" fill="#5f9a5c"/>
+
+        <!-- sleeping rabbit (static, in background) -->
+        <g transform="translate(520,340)" opacity="0.9">
+          <ellipse cx="0" cy="0" rx="46" ry="28" fill="var(--rabbit)" stroke="#25313a" stroke-width="4"/>
+          <circle cx="-50" cy="-6" r="22" fill="var(--rabbit)" stroke="#25313a" stroke-width="4"/>
+          <ellipse cx="-62" cy="-32" rx="6" ry="20" fill="var(--rabbit)" stroke="#25313a" stroke-width="3" transform="rotate(-15 -62 -32)"/>
+          <ellipse cx="-40" cy="-32" rx="6" ry="20" fill="var(--rabbit)" stroke="#25313a" stroke-width="3" transform="rotate(15 -40 -32)"/>
+          <path d="M-58 -6 Q-50 -3 -42 -6" stroke="#25313a" stroke-width="2" fill="none"/>
+        </g>
+
+        <!-- turtle walking steadily -->
+        <g class="turtle-walk" transform="translate(150,340)">
+          <g class="shell-bob">
+            <ellipse cx="0" cy="0" rx="46" ry="30" fill="var(--turtle-shell)" stroke="#25313a" stroke-width="4"/>
+            <path d="M-30 -8 Q0 -26 30 -8 Q0 6 -30 -8" fill="var(--turtle-shell-2)" stroke="#25313a" stroke-width="2"/>
+          </g>
+          <circle cx="44" cy="-6" r="16" fill="var(--turtle-skin)" stroke="#25313a" stroke-width="3"/>
+          <circle cx="49" cy="-9" r="2" fill="#25313a"/>
+          <path d="M44 2 Q50 6 56 2" stroke="#25313a" stroke-width="2" fill="none"/>
+          <line class="turtle-leg-walk" x1="-30" y1="18" x2="-38" y2="34" stroke="#25313a" stroke-width="5" stroke-linecap="round"/>
+          <line class="turtle-leg-walk" x1="18" y1="22" x2="24" y2="38" stroke="#25313a" stroke-width="5" stroke-linecap="round" style="animation-delay:.45s"/>
+        </g>
+      </svg>
+    </div>
+
+    <!-- ============ SCENE 6: rua ve dich, tho hot hoang ============ -->
+    <div class="scene" id="scene6">
+      <svg viewBox="0 0 800 450">
+        <rect x="0" y="330" width="800" height="120" fill="#a9d9a0"/>
+        <rect x="0" y="380" width="800" height="70" fill="var(--path)"/>
+        <rect x="600" y="380" width="10" height="70" fill="#fff" stroke="#25313a" stroke-width="2"/>
+        <g stroke="#25313a" stroke-width="3" fill="none">
+          <line x1="605" y1="380" x2="605" y2="330"/>
+          <path d="M605 330 L640 340 L605 350 Z" fill="var(--accent)"/>
+        </g>
+
+        <!-- squirrel cheering -->
+        <g transform="translate(680,300)">
+          <ellipse cx="0" cy="30" rx="18" ry="24" fill="#c98a4b" stroke="#25313a" stroke-width="3"/>
+          <circle cx="0" cy="-4" r="16" fill="#c98a4b" stroke="#25313a" stroke-width="3"/>
+          <line class="cheer-arm" x1="-16" y1="26" x2="-40" y2="6" stroke="#25313a" stroke-width="5" stroke-linecap="round"/>
+        </g>
+        <!-- bird cheering -->
+        <g transform="translate(730,260)">
+          <ellipse cx="0" cy="0" rx="16" ry="12" fill="#e0704b" stroke="#25313a" stroke-width="2.5"/>
+          <path d="M14 0 L26 -4 L26 4 Z" fill="#f4b942"/>
+        </g>
+
+        <!-- turtle at finish line, bouncing -->
+        <g class="finish-bounce" transform="translate(610,340)">
+          <ellipse cx="0" cy="0" rx="46" ry="30" fill="var(--turtle-shell)" stroke="#25313a" stroke-width="4"/>
+          <path d="M-30 -8 Q0 -26 30 -8 Q0 6 -30 -8" fill="var(--turtle-shell-2)" stroke="#25313a" stroke-width="2"/>
+          <circle cx="44" cy="-6" r="16" fill="var(--turtle-skin)" stroke="#25313a" stroke-width="3"/>
+          <circle cx="49" cy="-9" r="2" fill="#25313a"/>
+          <path d="M42 0 Q50 8 58 0" stroke="#25313a" stroke-width="2.5" fill="none"/>
+          <line x1="-30" y1="18" x2="-38" y2="34" stroke="#25313a" stroke-width="5" stroke-linecap="round"/>
+          <line x1="18" y1="22" x2="24" y2="38" stroke="#25313a" stroke-width="5" stroke-linecap="round"/>
+        </g>
+
+        <!-- rabbit panicking, arriving late -->
+        <g class="rabbit-panic" transform="translate(340,300)">
+          <g class="head-shock">
+            <ellipse cx="0" cy="30" rx="34" ry="30" fill="var(--rabbit)" stroke="#25313a" stroke-width="4"/>
+            <circle cx="8" cy="-14" r="24" fill="var(--rabbit)" stroke="#25313a" stroke-width="4"/>
+            <ellipse cx="-4" cy="-46" rx="7" ry="26" fill="var(--rabbit)" stroke="#25313a" stroke-width="3" transform="rotate(-10 -4 -46)"/>
+            <ellipse cx="20" cy="-46" rx="7" ry="26" fill="var(--rabbit)" stroke="#25313a" stroke-width="3" transform="rotate(10 20 -46)"/>
+            <circle cx="0" cy="-16" r="3" fill="#25313a"/>
+            <circle cx="16" cy="-16" r="3" fill="#25313a"/>
+            <ellipse cx="8" cy="-4" rx="5" ry="7" fill="#25313a"/>
+          </g>
+          <line class="rabbit-leg-panic" x1="-20" y1="54" x2="-40" y2="70" stroke="#25313a" stroke-width="6" stroke-linecap="round"/>
+          <line class="rabbit-leg-panic" x1="20" y1="54" x2="40" y2="70" stroke="#25313a" stroke-width="6" stroke-linecap="round" style="animation-delay:.07s"/>
+        </g>
+        <text x="180" y="200" font-size="26" fill="#c0392b" font-weight="bold">"Ôi không!"</text>
+      </svg>
+    </div>
+
+    <!-- ============ SCENE 7: ket + thong diep ============ -->
+    <div class="scene" id="scene7">
+      <svg viewBox="0 0 800 450">
+        <rect x="0" y="330" width="800" height="120" fill="#a9d9a0"/>
+        <circle class="sun-glow" cx="130" cy="90" r="46" fill="#ffd76b"/>
+        <g stroke="#3f6b45" stroke-width="6" fill="none">
+          <line x1="700" y1="330" x2="700" y2="230"/>
+          <circle cx="700" cy="210" r="34" fill="#5f9a5c" stroke="none"/>
+        </g>
+        <g class="star-twinkle" transform="translate(250,150)"><path d="M0 -8 L2 -2 L8 0 L2 2 L0 8 L-2 2 L-8 0 L-2 -2 Z" fill="#fff6c9"/></g>
+        <g class="star-twinkle" style="animation-delay:.5s" transform="translate(300,110)"><path d="M0 -6 L1.5 -1.5 L6 0 L1.5 1.5 L0 6 L-1.5 1.5 L-6 0 L-1.5 -1.5 Z" fill="#fff6c9"/></g>
+
+        <!-- Turtle waving proudly -->
+        <g transform="translate(230,350)">
+          <ellipse cx="0" cy="0" rx="50" ry="32" fill="var(--turtle-shell)" stroke="#25313a" stroke-width="4"/>
+          <path d="M-32 -8 Q0 -28 32 -8 Q0 8 -32 -8" fill="var(--turtle-shell-2)" stroke="#25313a" stroke-width="2"/>
+          <circle cx="48" cy="-8" r="18" fill="var(--turtle-skin)" stroke="#25313a" stroke-width="3"/>
+          <circle cx="54" cy="-11" r="2.2" fill="#25313a"/>
+          <path d="M45 -2 Q52 4 60 -2" stroke="#25313a" stroke-width="2.5" fill="none"/>
+          <line x1="-32" y1="20" x2="-40" y2="38" stroke="#25313a" stroke-width="5" stroke-linecap="round"/>
+          <line class="turtle-wave-leg" x1="20" y1="24" x2="30" y2="4" stroke="#25313a" stroke-width="5" stroke-linecap="round"/>
+        </g>
+
+        <g class="fade-in-text">
+          <rect x="330" y="150" width="440" height="110" rx="18" fill="var(--card)" stroke="#25313a" stroke-width="3"/>
+          <text x="550" y="195" font-size="24" fill="#25313a" text-anchor="middle" font-weight="bold">Chậm mà chắc,</text>
+          <text x="550" y="228" font-size="24" fill="#25313a" text-anchor="middle" font-weight="bold">kiên trì ắt thắng</text>
+        </g>
+      </svg>
+    </div>
+
+    <!-- CAPTION -->
+    <div id="caption"><span id="caption-text">Trong khu rừng nọ, có một chú Thỏ chạy rất nhanh và một bác Rùa chậm rãi...</span></div>
+  </div>
+
+  <div id="controls">
+    <button id="btn-replay">⟲ Phát lại</button>
+    <button id="btn-pause">⏸ Tạm dừng</button>
+    <span id="timer">0.0s / 60s</span>
+  </div>
+</div>
+
+<script>
+  // Danh sách 7 cảnh: [id, thời điểm bắt đầu (giây), lời bình]
+  const scenes = [
+    {id:"scene1", start:0,  text:"Trong khu rừng nọ, có chú Thỏ chạy rất nhanh và bác Rùa chậm rãi, hiền lành."},
+    {id:"scene2", start:8,  text:"“Bác đi chậm như sên, sao dám thi chạy với tôi?” Thỏ cười. Rùa điềm tĩnh nhận lời thách đấu."},
+    {id:"scene3", start:16, text:"Cờ hiệu vừa phất, Thỏ vọt đi như tên bắn, bỏ xa Rùa một quãng đường dài."},
+    {id:"scene4", start:24, text:"Thấy còn xa mới tới đích, Thỏ chủ quan nằm nghỉ dưới gốc cây... rồi ngủ quên mất."},
+    {id:"scene5", start:34, text:"Trong khi đó, bác Rùa vẫn cần mẫn bước từng bước chậm mà chắc, không hề dừng lại."},
+    {id:"scene6", start:46, text:"Khi Thỏ giật mình tỉnh dậy chạy vội tới nơi, thì Rùa đã về đích từ lúc nào."},
+    {id:"scene7", start:56, text:"Chậm mà chắc, kiên trì ắt thắng. Đừng bao giờ chủ quan nhé!"},
+  ];
+  const TOTAL = 60;
+
+  const captionText = document.getElementById("caption-text");
+  const sceneTag = document.getElementById("scene-tag");
+  const progressBar = document.getElementById("progress-bar");
+  const timerEl = document.getElementById("timer");
+  let startTime = performance.now();
+  let paused = false;
+  let pausedAt = 0;
+  let rafId;
+  let lastSceneId = null;
+
+  function activateScene(current, idx){
+    document.querySelectorAll(".scene").forEach(s=>s.classList.remove("active"));
+    const el = document.getElementById(current.id);
+    if(el) el.classList.add("active");
+    captionText.textContent = current.text;
+    sceneTag.textContent = "Cảnh " + (idx+1) + "/7";
+  }
+
+  function tick(now){
+    if(paused) return;
+    let elapsed = (now - startTime)/1000;
+    if(elapsed >= TOTAL){
+      elapsed = TOTAL;
+      startTime = now - TOTAL*1000; // hold at end
+    }
+    progressBar.style.width = (elapsed/TOTAL*100) + "%";
+    timerEl.textContent = elapsed.toFixed(1) + "s / 60s";
+
+    let current = scenes[0], idx = 0;
+    for(let i=0;i<scenes.length;i++){ if(elapsed >= scenes[i].start){ current = scenes[i]; idx = i; } }
+
+    if(current.id !== lastSceneId){
+      lastSceneId = current.id;
+      activateScene(current, idx);
+    }
+
+    if(elapsed < TOTAL){
+      rafId = requestAnimationFrame(tick);
+    }
+  }
+
+  function play(){
+    paused = false;
+    rafId = requestAnimationFrame(tick);
+  }
+
+  document.getElementById("btn-replay").addEventListener("click", ()=>{
+    cancelAnimationFrame(rafId);
+    lastSceneId = null;
+    startTime = performance.now();
+    paused = false;
+    document.getElementById("btn-pause").textContent = "⏸ Tạm dừng";
+    play();
+  });
+
+  document.getElementById("btn-pause").addEventListener("click", (e)=>{
+    if(!paused){
+      paused = true;
+      pausedAt = performance.now();
+      cancelAnimationFrame(rafId);
+      e.target.textContent = "▶ Tiếp tục";
+    } else {
+      paused = false;
+      startTime += (performance.now() - pausedAt);
+      e.target.textContent = "⏸ Tạm dừng";
+      play();
+    }
+  });
+
+  play();
+</script>
+
+</body>
+</html>

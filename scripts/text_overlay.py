@@ -6,13 +6,18 @@ import os
 from PIL import Image, ImageDraw, ImageFont, ImageFilter
 
 FONT_BOLD = [
-    "C:/Windows/Fonts/arialbd.ttf",
+    # Segoe UI Semibold — full Vietnamese Unicode support (Windows)
+    "C:/Windows/Fonts/seguisb.ttf",
+    "C:/Windows/Fonts/segoeuib.ttf",
+    # macOS / Linux fallbacks
     "/System/Library/Fonts/Supplemental/Arial Bold.ttf",
     "/Library/Fonts/Arial Bold.ttf",
     "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
 ]
 FONT_REG = [
-    "C:/Windows/Fonts/arial.ttf",
+    # Segoe UI Regular — full Vietnamese Unicode support (Windows)
+    "C:/Windows/Fonts/segoeui.ttf",
+    # macOS / Linux fallbacks
     "/System/Library/Fonts/Supplemental/Arial.ttf",
     "/Library/Fonts/Arial.ttf",
     "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
@@ -60,6 +65,82 @@ def accent_color(image_path, default=(214, 64, 42)):
         if score > best_score:
             best, best_score = (r, g, b), score
     return best or default
+
+
+def render_karaoke_caption(words, active_idx, out_path, W=1920, H=1080, accent=None, margin_v=35):
+    """
+    Render 1-line karaoke caption overlay with pink badge (#ff2d55) for active_idx word.
+    Font size is 20% larger than default (~0.0612 * min(W,H)). Position is shifted downwards.
+    """
+    size = int(min(W, H) * 0.051 * 1.2)
+    fnt = _font(FONT_BOLD, size)
+
+    img = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+    d = ImageDraw.Draw(img)
+
+    # Calculate word measurements
+    widths = [d.textlength(w, font=fnt) for w in words]
+    space_w = d.textlength(" ", font=fnt)
+    total_w = sum(widths) + space_w * (len(words) - 1)
+
+    # Position: shifted downwards (margin_v=35px from bottom margin)
+    y = H - margin_v - int(size * 1.15)
+    x_start = (W - total_w) / 2.0
+
+    # Measure full vertical span for text line (including Vietnamese diacritics & descenders)
+    ref_box = d.textbbox((0, y), "ÁjệgqĐy", font=fnt)
+    line_top = ref_box[1]
+    line_bot = ref_box[3]
+
+    pad_x = int(size * 0.22)
+    pad_y = int(size * 0.15)
+    radius = int(size * 0.25)
+    pink_color = (255, 45, 85, 255)  # #ff2d55
+
+    # 1. Draw active word pink badge shadow + badge
+    x_curr = x_start
+    for i, w in enumerate(words):
+        w_w = widths[i]
+        if i == active_idx:
+            box = [
+                x_curr - pad_x,
+                line_top - pad_y,
+                x_curr + w_w + pad_x,
+                line_bot + pad_y
+            ]
+            # Badge shadow
+            sh = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+            sd = ImageDraw.Draw(sh)
+            sd.rounded_rectangle([box[0] + 2, box[1] + 4, box[2] + 2, box[3] + 4], radius=radius, fill=(0, 0, 0, 100))
+            sh = sh.filter(ImageFilter.GaussianBlur(3))
+            img.alpha_composite(sh)
+
+            # Pink badge
+            d = ImageDraw.Draw(img)
+            d.rounded_rectangle(box, radius=radius, fill=pink_color)
+        x_curr += w_w + space_w
+
+    # 2. Draw text for all words
+    x_curr = x_start
+    d = ImageDraw.Draw(img)
+    ow = max(2, int(size * 0.05))
+
+    for i, w in enumerate(words):
+        w_w = widths[i]
+        if i != active_idx:
+            # Drop shadow / outline for inactive words
+            for dx in range(-ow, ow + 1):
+                for dy in range(-ow, ow + 1):
+                    if dx * dx + dy * dy <= ow * ow:
+                        d.text((x_curr + dx + 2, y + dy + 3), w, font=fnt, fill=(0, 0, 0, 220))
+            d.text((x_curr, y), w, font=fnt, fill=(255, 255, 255, 255))
+        else:
+            # Active word text (pure white over pink badge)
+            d.text((x_curr, y), w, font=fnt, fill=(255, 255, 255, 255))
+        x_curr += w_w + space_w
+
+    img.save(out_path)
+    return out_path
 
 
 def render_caption(text, out_path, W=1920, H=1080, margin_v=None, accent=None, style="white"):
