@@ -31,11 +31,11 @@ def parse_content_md(content_path: str) -> dict:
         text, re.IGNORECASE
     )
     if desc_match:
-        description = desc_match.group(1).strip().strip('"\u201c\u201d\u2018\u2019')
+        description = desc_match.group(1).strip().strip('"\u201c\u201d\u2018\u2019').strip('|').strip()
     else:
         # Fallback: look for blockquote > "..." in text
         bq_match = re.search(r'>\s*["\u201c]?([^"\u201d\n]{15,})["\u201d]?', text)
-        description = bq_match.group(1).strip().strip('"\u201c\u201d\u2018\u2019') if bq_match else ""
+        description = bq_match.group(1).strip().strip('"\u201c\u201d\u2018\u2019').strip('|').strip() if bq_match else ""
 
     # Split text into scene sections (flexible to any title/timing order on "##/###/#### Cảnh N" lines)
     scene_pattern = re.compile(
