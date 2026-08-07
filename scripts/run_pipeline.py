@@ -80,6 +80,36 @@ def _extract_story_name(content_path: str) -> str:
     return ""
 
 
+def _render_svg_thumbnail(svg_path: str, out_png: str, width: int = 1280, height: int = 720) -> bool:
+    """
+    Use Playwright headless Chromium to render a .svg file as PNG.
+    Returns True on success, False on failure.
+    """
+    try:
+        from playwright.sync_api import sync_playwright
+    except ImportError:
+        print("[thumbnail] playwright not installed — skipping SVG thumbnail render.")
+        return False
+
+    try:
+        svg_url = "file:///" + svg_path.replace("\\", "/").lstrip("/")
+        with sync_playwright() as pw:
+            browser = pw.chromium.launch()
+            page = browser.new_page(viewport={"width": width, "height": height})
+            page.goto(svg_url)
+            try:
+                page.wait_for_load_state("networkidle", timeout=5000)
+            except Exception:
+                pass
+            page.screenshot(path=out_png, full_page=False)
+            browser.close()
+        print(f"[thumbnail] Rendered SVG thumbnail -> {out_png}")
+        return True
+    except Exception as e:
+        print(f"[thumbnail] SVG thumbnail render failed: {e}")
+        return False
+
+
 def _render_html_thumbnail(html_path: str, out_png: str, width: int = 1280, height: int = 720) -> bool:
     """
     Use Playwright headless Chromium to screenshot thumbnail_generator.html
@@ -180,22 +210,30 @@ def main():
             shutil.copy2(user_thumb, dest_thumb)
             copied_thumbnail = dest_thumb
     else:
-        # Priority 1: thumbnail_generator.html -> render to PNG via Playwright
-        html_gen = os.path.join(input_dir, "thumbnail_generator.html")
-        if os.path.exists(html_gen):
-            dest_thumb = os.path.join(project_dir, "thumbnail.png")
-            if _render_html_thumbnail(html_gen, dest_thumb):
+        # Priority 1: static thumbnail image files (thumbnail.png / .jpg / .jpeg / .webp)
+        for thumb_name in ("thumbnail.png", "thumbnail.jpg", "thumbnail.jpeg", "thumbnail.webp"):
+            src_thumb = os.path.join(input_dir, thumb_name)
+            if os.path.exists(src_thumb):
+                dest_thumb = os.path.join(project_dir, os.path.basename(src_thumb))
+                shutil.copy2(src_thumb, dest_thumb)
                 copied_thumbnail = dest_thumb
+                break
 
-        # Priority 2: fall back to static thumbnail image files
+        # Priority 2: thumbnail_generator.svg -> render via Playwright
         if not copied_thumbnail:
-            for thumb_name in ("thumbnail.png", "thumbnail.jpg", "thumbnail.jpeg", "thumbnail.webp"):
-                src_thumb = os.path.join(input_dir, thumb_name)
-                if os.path.exists(src_thumb):
-                    dest_thumb = os.path.join(project_dir, os.path.basename(src_thumb))
-                    shutil.copy2(src_thumb, dest_thumb)
+            svg_gen = os.path.join(input_dir, "thumbnail_generator.svg")
+            if os.path.exists(svg_gen):
+                dest_thumb = os.path.join(project_dir, "thumbnail.png")
+                if _render_svg_thumbnail(svg_gen, dest_thumb):
                     copied_thumbnail = dest_thumb
-                    break
+
+        # Priority 3: thumbnail_generator.html -> screenshot via Playwright
+        if not copied_thumbnail:
+            html_gen = os.path.join(input_dir, "thumbnail_generator.html")
+            if os.path.exists(html_gen):
+                dest_thumb = os.path.join(project_dir, "thumbnail.png")
+                if _render_html_thumbnail(html_gen, dest_thumb):
+                    copied_thumbnail = dest_thumb
 
     print(f"\n[NEW PIPELINE]")
     print(f"   Content   : {content_path}")
