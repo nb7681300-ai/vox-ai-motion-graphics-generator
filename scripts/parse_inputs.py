@@ -126,53 +126,74 @@ def parse_content_md(content_path: str) -> dict:
                 "camera_move": "static",
             })
     else:
-        # Fallback: Try Markdown table format (handles both 4-column and 5-column tables)
-        def _clean_narr(raw_n: str) -> str:
-            # Remove timing notes in parentheses e.g. (≈12s thoại / 14s cảnh)
-            raw_n = re.sub(r'\(\s*[\approx~]?\s*[\d:.]+s?\s*thoại[^\)]*\)', '', raw_n, flags=re.IGNORECASE)
-            raw_n = re.sub(r'\([^\)]*cảnh[^\)]*\)', '', raw_n, flags=re.IGNORECASE)
-            return raw_n.strip(' *\"“\'”\t\n\r')
+        # Fallback: Try Markdown table format with intelligent header column mapping
+        lines = text.splitlines()
+        header_idx = -1
+        col_map = {}
 
-        for line in text.splitlines():
+        for i, line in enumerate(lines):
             line_s = line.strip()
             if line_s.startswith("|") and line_s.endswith("|"):
-                cells = [c.strip() for c in line_s.split("|")[1:-1]]
-                # Match scene number in first cell (e.g. "1" or "Cảnh 1")
-                num_m = re.search(r'(\d+)', cells[0]) if cells else None
-                if num_m and len(cells) >= 4:
-                    s_num = int(num_m.group(1))
-                    if len(cells) >= 5:
-                        # 5-column table: # | Tên cảnh | Thời lượng | Mô tả hình ảnh | Lời bình (Voice-over)
-                        raw_title = cells[1].strip("*")
-                        t_range = cells[2]
-                        raw_narr = cells[4]
-                    else:
-                        # 4-column table: # | Thời lượng | Nội dung / Mô tả | Lời bình / Voice-over
-                        raw_title = cells[2].strip("*")
-                        t_range = cells[1]
-                        raw_narr = cells[3]
+                cells = [c.strip().lower() for c in line_s.split("|")[1:-1]]
+                has_scene_col = any("cảnh" in c or "scene" in c or c == "#" or "stt" in c for c in cells)
+                has_narr_col = any(kw in c for c in cells for kw in ["lời bình", "voice", "thuyết minh", "lời thoại"])
+                if len(cells) >= 3 and has_scene_col and has_narr_col:
+                    header_idx = i
+                    for idx, c in enumerate(cells):
+                        if any(kw in c for kw in ["lời bình", "voice", "thuyết minh", "lời thoại"]):
+                            col_map["narr"] = idx
+                        elif any(kw in c for kw in ["thời lượng", "thời gian", "duration", "time"]):
+                            col_map["time"] = idx
+                        elif any(kw in c for kw in ["tên cảnh", "tên", "title"]):
+                            col_map["title"] = idx
+                        elif any(kw in c for kw in ["hình ảnh", "nội dung", "mô tả", "visual", "image"]):
+                            col_map["desc"] = idx
+                        elif any(kw in c for kw in ["cảnh", "scene", "stt"]) or c == "#":
+                            col_map["num"] = idx
+                    break
 
-                    narr = _clean_narr(raw_narr)
-                    scene_title = raw_title if raw_title else f"Scene {s_num}"
+        if header_idx != -1:
+            for line in lines[header_idx + 1:]:
+                line_s = line.strip()
+                if line_s.startswith("|") and line_s.endswith("|"):
+                    cells = [c.strip() for c in line_s.split("|")[1:-1]]
+                    if not cells or "---" in cells[0]:
+                        continue
+                    num_m = re.search(r'(\d+)', cells[0])
+                    if num_m:
+                        s_num = int(num_m.group(1))
+                        narr_idx = col_map.get("narr", -1)
+                        raw_narr = cells[narr_idx] if 0 <= narr_idx < len(cells) else ""
 
-                    tm = re.search(r'([\d:.]+s?)\s*[-\u2013\u2014]\s*([\d:.]+s?)', t_range)
-                    if tm:
-                        t_start = parse_sec(tm.group(1))
-                        t_end = parse_sec(tm.group(2))
-                        dur = round(max(2.0, t_end - t_start), 2)
-                    else:
-                        t_start = 0.0
-                        dur = 8.0
+                        # Clean timing notes in parentheses e.g. (≈12s thoại / 14s cảnh)
+                        narr = re.sub(r'\(\s*[\approx~]?\s*[\d:.]+s?\s*thoại[^\)]*\)', '', raw_narr, flags=re.IGNORECASE)
+                        narr = re.sub(r'\([^\)]*cảnh[^\)]*\)', '', narr, flags=re.IGNORECASE)
+                        narr = narr.strip(' *\"“\'”\t\n\r')
 
-                    beats.append({
-                        "id": s_num,
-                        "scene_id": f"scene{s_num}",
-                        "title": scene_title.upper(),
-                        "narration": narr,
-                        "start": t_start,
-                        "dur": dur,
-                        "camera_move": "static",
-                    })
+                        title_idx = col_map.get("title", col_map.get("desc", 0))
+                        raw_title = cells[title_idx].strip("*") if 0 <= title_idx < len(cells) else f"Scene {s_num}"
+
+                        t_idx = col_map.get("time", 1)
+                        t_range = cells[t_idx] if 0 <= t_idx < len(cells) else ""
+
+                        tm = re.search(r'([\d:.]+s?)\s*[-\u2013\u2014]\s*([\d:.]+s?)', t_range)
+                        if tm:
+                            t_start = parse_sec(tm.group(1))
+                            t_end = parse_sec(tm.group(2))
+                            dur = round(max(2.0, t_end - t_start), 2)
+                        else:
+                            t_start = 0.0
+                            dur = 8.0
+
+                        beats.append({
+                            "id": s_num,
+                            "scene_id": f"scene{s_num}",
+                            "title": raw_title.upper(),
+                            "narration": narr,
+                            "start": t_start,
+                            "dur": dur,
+                            "camera_move": "static",
+                        })
 
     return {
         "topic": full_topic,
