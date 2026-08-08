@@ -95,6 +95,16 @@ def parse_content_md(content_path: str) -> dict:
                 sub = sec_content[loi_binh_match.end():]
                 for line in sub.splitlines():
                     line_str = line.strip()
+                    if not line_str:
+                        continue
+                    
+                    # Skip metadata/timing lines like (~13s), (10s thoại, 80%):
+                    clean_test = re.sub(r'[\d\s\(\)~\-%\.:,≈\u2013\u2014\u2248\u224b|/]', '', line_str).lower()
+                    for w in ('thoại', 'thoai', 'giây', 'giay', 'cảnh', 'canh', 's'):
+                        clean_test = clean_test.replace(w, '')
+                    if len(clean_test) == 0:
+                        continue
+
                     if line_str.startswith(">"):
                         cleaned = line_str.lstrip(">").strip()
                         if cleaned:
@@ -110,11 +120,21 @@ def parse_content_md(content_path: str) -> dict:
                 
                 # If no blockquote lines (> ...), take first line after label
                 if not narr_lines and sub.strip():
-                    first_line = sub.strip().splitlines()[0].strip()
-                    if first_line and not first_line.startswith("- **"):
-                        cleaned = first_line.strip('"“\'”')
-                        if cleaned:
-                            narr_lines.append(cleaned)
+                    for line in sub.splitlines():
+                        first_line = line.strip()
+                        if not first_line:
+                            continue
+                        # Skip metadata/timing lines
+                        clean_test = re.sub(r'[\d\s\(\)~\-%\.:,≈\u2013\u2014\u2248\u224b|/]', '', first_line).lower()
+                        for w in ('thoại', 'thoai', 'giây', 'giay', 'cảnh', 'canh', 's'):
+                            clean_test = clean_test.replace(w, '')
+                        if len(clean_test) == 0:
+                            continue
+                        if not first_line.startswith("- **") and not first_line.startswith("#"):
+                            cleaned = first_line.strip('"“\'”')
+                            if cleaned:
+                                narr_lines.append(cleaned)
+                        break
 
             narr = " ".join(narr_lines).strip()
             if (narr.startswith('"') and narr.endswith('"')) or (narr.startswith('“') and narr.endswith('”')):
