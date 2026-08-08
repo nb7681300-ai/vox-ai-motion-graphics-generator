@@ -237,6 +237,12 @@ def run(project_dir):
         beat_spans.append({"start": beat_start, "dur": round(t - beat_start, 2), "beat": beat})
     total = round(t, 2)
 
+    # Ensure transparent.png exists in tmp
+    transparent_png = os.path.join(tmp, "transparent.png")
+    if not os.path.exists(transparent_png):
+        from PIL import Image as _Image
+        _Image.new("RGBA", (W, H), (0, 0, 0, 0)).save(transparent_png)
+
     seg_files = []
     for i, s in enumerate(segs):
         out = os.path.join(tmp, f"seg_{i:02d}.mp4")
@@ -247,27 +253,53 @@ def run(project_dir):
         beat = s["beat"]
         beat_caps = _build_karaoke_overlays_for_beat(beat, s["dur"], tmp, W, H, beat.get("id", i + 1))
 
-        inputs = ["-i", s["clip"]]
-        fc_parts = [
+        # Build subtitle list for concat demuxer
+        sub_list_txt = os.path.join(tmp, f"sub_list_{i:02d}.txt")
+        with open(sub_list_txt, "w", encoding="utf-8") as f_sub:
+            curr_t = 0.0
+            last_png = "transparent.png"
+            for c_png, s_start, s_end in beat_caps:
+                s_start = max(0.0, s_start)
+                s_end = max(s_start, s_end)
+                c_name = os.path.basename(c_png)
+                
+                # Gap before this word
+                if s_start > curr_t:
+                    gap_dur = s_start - curr_t
+                    f_sub.write(f"file 'transparent.png'\nduration {gap_dur:.3f}\n")
+                    curr_t = s_start
+                
+                # The word itself
+                word_dur = s_end - s_start
+                f_sub.write(f"file '{c_name}'\nduration {word_dur:.3f}\n")
+                curr_t = s_end
+                last_png = c_name
+                
+            # Gap at the end
+            if s["dur"] > curr_t:
+                gap_dur = s["dur"] - curr_t
+                f_sub.write(f"file 'transparent.png'\nduration {gap_dur:.3f}\n")
+                last_png = "transparent.png"
+                
+            # Repeat last file for the duration bug
+            f_sub.write(f"file '{last_png}'\n")
+
+        inputs = [
+            "-i", s["clip"],
+            "-f", "concat", "-safe", "0", "-i", sub_list_txt
+        ]
+        
+        full_fc = (
             f"[0:v]{pre}split[s0][s1];"
             f"[s0]scale={W}:{H}:force_original_aspect_ratio=increase,crop={W}:{H},"
             f"boxblur=26:2,eq=brightness=-0.05[bg];"
             f"[s1]scale={W}:{H}:force_original_aspect_ratio=decrease[fg];"
             f"[bg][fg]overlay=(W-w)/2:(H-h)/2,setsar=1,fps={FPS},"
-            f"tpad=stop_mode=clone:stop_duration=1[v0]"
-        ]
-        last_v = "[v0]"
+            f"tpad=stop_mode=clone:stop_duration=1[v0];"
+            f"[v0][1:v]overlay=0:0[vfinal]"
+        )
 
-        for c_idx, (c_png, s_start, s_end) in enumerate(beat_caps, start=1):
-            inputs.extend(["-i", c_png])
-            out_v = f"[vcap{c_idx}]"
-            fc_parts.append(
-                f"{last_v}[{c_idx}:v]overlay=0:0:enable='between(t,{s_start:.3f},{s_end:.3f})'{out_v}"
-            )
-            last_v = out_v
-
-        full_fc = ";".join(fc_parts)
-        ff([*inputs, "-an", "-filter_complex", full_fc, "-map", last_v, "-t", f"{s['dur']}",
+        ff([*inputs, "-an", "-filter_complex", full_fc, "-map", "[vfinal]", "-t", f"{s['dur']}",
             "-c:v", "libx264", "-pix_fmt", "yuv420p", out])
         seg_files.append(out)
 
