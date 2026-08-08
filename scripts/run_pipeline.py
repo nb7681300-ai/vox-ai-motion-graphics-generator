@@ -54,30 +54,44 @@ def _extract_story_name(content_path: str) -> str:
     """Read the first H1 line of content.md and return only the story title part.
 
     Given a line like:
-      # KỊCH BẢN VIDEO HOẠT HÌNH NGƯỜI QUE: HOÀNG TỬ BÉ VÀ CON CÁO — BÀI HỌC VỀ SỰ CẢM HÓA
+      # KỊCH BẢN VIDEO HOẠT HÌNH NGƯỜI QUE: HOÀNG TỬ BÉ VÀ CON CÁO — BÀI HỌC VỀ SỰ CẢM HÓA (Tổng thời lượng: 120 giây)
     Returns:
       'Hoang Tu Be Va Con Cao'
     """
     try:
+        import re as _re
         with open(content_path, "r", encoding="utf-8") as f:
             for line in f:
+                # Auto-unescape backslash-escaped Markdown characters
+                line = _re.sub(r'\\([#*\->`|!\[\]()_~{}])', r'\1', line)
                 line = line.strip()
                 if line.startswith("#"):
                     title = line.lstrip("#").strip()
-                    # Strip script prefix if present (e.g. KỊCH BẢN VIDEO:)
-                    colon = title.find(":")
-                    if colon != -1:
-                        title = title[colon + 1:]
-                    # Strip moral/meaning suffixes (after —, –, -, or ()
+                    
+                    # 1. Strip trailing parentheses or brackets first
+                    title = _re.sub(r'\s*\([^)]*\)\s*$', '', title).strip()
+                    title = _re.sub(r'\s*\[[^\]]*\]\s*$', '', title).strip()
+                    
+                    # 2. Strip prefix pattern like "KỊCH BẢN VIDEO HOẠT HÌNH NGƯỜI QUE: "
+                    prefix_match = _re.match(
+                        r'^(?:kịch\s+bản|video|hoạt\s+hình|người\s+que|lồng\s+tiếng|ngụ\s+ngôn|thần\s+thoại|truyện|tập|phần\s+\d+|\s)+:\s*',
+                        title,
+                        _re.IGNORECASE
+                    )
+                    if prefix_match:
+                        title = title[prefix_match.end():].strip()
+                    
+                    # 3. Strip moral/meaning suffixes (after —, –, -, or ()
                     for sep in ("—", "–", " - ", "("):
                         idx = title.find(sep)
                         if idx != -1:
                             title = title[:idx]
+                            
                     title = title.strip()
                     return _strip_accents(title).title()
     except Exception:
         pass
-    return ""
+    return "Video"
 
 
 def _render_svg_thumbnail(svg_path: str, out_png: str, width: int = 1280, height: int = 720) -> bool:

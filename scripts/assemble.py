@@ -192,12 +192,22 @@ def run(project_dir):
 
     # Derive output filename from story title slug
     raw_topic = doc.get("topic", "").strip()
-    # Strip prefix keywords (e.g. "KỊCH BẢN VIDEO HOẠT HÌNH NGƯỜI QUE: ")
-    name_part = raw_topic
-    colon_idx = raw_topic.find(":")
-    if colon_idx != -1:
-        name_part = raw_topic[colon_idx + 1:]
-    # Strip moral/meaning suffixes (after —, –, -, or ()
+    import re as _re
+    
+    # 1. Strip trailing parentheses or brackets first
+    name_part = _re.sub(r'\s*\([^)]*\)\s*$', '', raw_topic).strip()
+    name_part = _re.sub(r'\s*\[[^\]]*\]\s*$', '', name_part).strip()
+    
+    # 2. Strip prefix pattern like "KỊCH BẢN VIDEO HOẠT HÌNH NGƯỜI QUE: "
+    prefix_match = _re.match(
+        r'^(?:kịch\s+bản|video|hoạt\s+hình|người\s+que|lồng\s+tiếng|ngụ\s+ngôn|thần\s+thoại|truyện|tập|phần\s+\d+|\s)+:\s*',
+        name_part,
+        _re.IGNORECASE
+    )
+    if prefix_match:
+        name_part = name_part[prefix_match.end():].strip()
+        
+    # 3. Strip moral/meaning suffixes (after —, –, -, or ()
     for sep in ("—", "–", " - ", "("):
         sep_idx = name_part.find(sep)
         if sep_idx != -1:
@@ -338,6 +348,15 @@ def run(project_dir):
         description = first_narr[:180].rsplit(" ", 1)[0] + "…" if len(first_narr) > 180 else first_narr
 
     caption_path = os.path.join(project_dir, "caption.txt")
+    # Normalize capitalization: if description is ALL CAPS, convert to standard sentence case
+    if description.isupper():
+        description = description.lower()
+        sentences = _re.split(r'(\s*[\.\?!]\s*)', description)
+        for idx in range(0, len(sentences), 2):
+            if sentences[idx]:
+                sentences[idx] = sentences[idx][0].upper() + sentences[idx][1:]
+        description = "".join(sentences)
+
     with open(caption_path, "w", encoding="utf-8") as cap_f:
         cap_f.write(description + "\n")
     print(f"Caption written  -> {caption_path}")
