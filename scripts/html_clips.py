@@ -11,6 +11,7 @@ Requirements:
 
 import json
 import os
+import re
 import subprocess
 import sys
 import time
@@ -90,12 +91,96 @@ def run(project_dir: str, default_clip_dur: int = 8):
             with open(anim_html, "r", encoding="utf-8") as f:
                 anim_source = f.read()
 
-            print(f"[html_clips] Recording from animation.html: {anim_html}")
+        print(f"[html_clips] Recording from animation.html: {anim_html}")
 
+        # Detect whether animation.html uses .scene class structure or a timeline schedule.
+        # Timeline-schedule animations (no .scene elements) must be recorded as a full run
+        # then trimmed per scene, whereas .scene-class animations can record each scene
+        # independently via CSS injection.
+        has_scene_classes = bool(re.search(r'class=["\'][^"\']*\bscene\b[^"\']*["\']', anim_source))
+
+        if not has_scene_classes:
+            # ── TIMELINE MODE: record full animation, then trim each scene window ──────
+            # Calculate total animation duration from beat timings
+            total_dur = max(
+                (float(beat.get("start", 0)) + float(beat.get("dur", 8))) for beat in doc["beats"]
+            ) + 1.0  # 1s padding
+
+            scene_url = "file:///" + anim_html.replace("\\", "/").lstrip("/")
+            print(f"[html_clips] Timeline mode — recording {total_dur:.1f}s full animation...")
+
+            context = browser.new_context(
+                viewport={"width": rw, "height": rh},
+                record_video_dir=tmp_webm,
+                record_video_size={"width": rw, "height": rh},
+            )
+            page = context.new_page()
+            page.goto(scene_url)
+            try:
+                page.wait_for_load_state("domcontentloaded", timeout=8000)
+            except Exception:
+                pass
+
+            # Short grace period for first-frame render
+            time.sleep(0.5)
+            # Record full animation
+            time.sleep(total_dur)
+
+            video = page.video
+            context.close()
+
+            webm_path = video.path() if video else None
+            if not webm_path or not os.path.exists(webm_path):
+                webms = [os.path.join(tmp_webm, f) for f in os.listdir(tmp_webm) if f.endswith(".webm")]
+                webm_path = max(webms, key=os.path.getmtime) if webms else None
+
+            if not webm_path:
+                print("[html_clips] ERROR: No WebM recorded from full timeline.")
+                browser.close()
+                sys.exit(1)
+
+            # Re-encode full WebM to full-res MP4 first (faster to trim from)
+            full_mp4 = os.path.join(tmp_webm, "full_timeline.mp4")
+            print(f"[html_clips] Encoding full timeline WebM -> MP4...")
+            subprocess.run([
+                "ffmpeg", "-y", "-i", webm_path,
+                "-vf", f"scale={w}:{h}:flags=lanczos",
+                "-c:v", "libx264", "-preset", "fast", "-crf", "18",
+                "-pix_fmt", "yuv420p", full_mp4,
+            ], check=True, stderr=subprocess.DEVNULL)
+            try:
+                os.remove(webm_path)
+            except Exception:
+                pass
+
+            # Trim each scene from the full MP4
             for beat in doc["beats"]:
                 key = str(beat["id"])
                 dest = os.path.join(clip_dir, f"clip_{key}.mp4")
-                # Skip existing clip ONLY if it's larger than 50KB (valid video frame content)
+                if os.path.exists(dest) and os.path.getsize(dest) > 50000:
+                    beat["clip_path"] = dest
+                    print(f"[{key}] skip (valid clip exists)")
+                    continue
+
+                t_start = float(beat.get("start", 0))
+                dur = float(beat.get("dur", 8))
+                print(f"[{key}] Trimming scene {key}: {t_start:.1f}s — {t_start + dur:.1f}s ({dur:.1f}s)")
+                subprocess.run([
+                    "ffmpeg", "-y",
+                    "-ss", str(t_start),
+                    "-i", full_mp4,
+                    "-t", str(dur),
+                    "-c:v", "libx264", "-preset", "fast", "-crf", "18",
+                    "-pix_fmt", "yuv420p", dest,
+                ], check=True, stderr=subprocess.DEVNULL)
+                beat["clip_path"] = dest
+                print(f"[{key}] saved  {dest}")
+
+        else:
+            # ── SCENE-CLASS MODE: inject CSS per scene, record independently ───────────
+            for beat in doc["beats"]:
+                key = str(beat["id"])
+                dest = os.path.join(clip_dir, f"clip_{key}.mp4")
                 if os.path.exists(dest) and os.path.getsize(dest) > 50000:
                     beat["clip_path"] = dest
                     print(f"[{key}] skip (valid clip exists: {dest})")
@@ -105,8 +190,6 @@ def run(project_dir: str, default_clip_dur: int = 8):
                 scene_id = beat.get("scene_id", f"scene{key}")
                 idx = int(key) - 1
 
-                # Build a standalone per-scene HTML — scene is pre-activated via injected CSS
-                # and a synchronous inline script so animations start from frame 0
                 inject_css = f"""
 <style id="__scene_inject__">
   html, body {{ margin:0!important; padding:0!important; width:100%!important; height:100%!important; overflow:hidden!important; background:#111!important; }}
@@ -116,11 +199,8 @@ def run(project_dir: str, default_clip_dur: int = 8):
                   aspect-ratio:unset!important; position:relative!important; }}
   #topbar, #controls, #caption {{ display:none!important; }}
   .scene       {{ display:block!important; opacity:0!important; visibility:hidden!important; transition:none!important; z-index:1!important; }}
-  /* Keep scene 1 slightly visible (opacity 0.001) so browser SVG renderer retains <defs> gradients (#bgDusk, #bgNight) */
   #scene1, #scene-1, #scene_1, .scene:first-of-type {{ display:block!important; opacity:0.001!important; visibility:visible!important; z-index:0!important; pointer-events:none!important; }}
-  /* Target scene — match any ID convention (scene1, scene-1, scene_1) or fallback to index */
   #{scene_id}, #scene-{key}, #scene_{key}, .scene:nth-of-type({key}) {{ display:block!important; opacity:1!important; visibility:visible!important; z-index:100!important; }}
-  /* force animations to play — override prefers-reduced-motion */
   @media (prefers-reduced-motion: reduce) {{
     *, *::before, *::after {{
       animation-duration:   revert !important;
@@ -132,32 +212,23 @@ def run(project_dir: str, default_clip_dur: int = 8):
 
                 inject_script = f"""
 <script id="__scene_init__">
-  // Run synchronously before page renders to freeze JS timeline loop
   (function() {{
     window.requestAnimationFrame = function() {{ return 0; }};
     function init() {{
       if (window.rafId) {{ cancelAnimationFrame(window.rafId); window.rafId = null; }}
       if (window.animationFrameId) {{ cancelAnimationFrame(window.animationFrameId); window.animationFrameId = null; }}
       if (typeof window.paused !== 'undefined') window.paused = true;
-
-      // Deactivate all scenes except ours
       var allScenes = document.querySelectorAll('.scene');
-      allScenes.forEach(function(s) {{
-        s.classList.remove('active');
-      }});
-
+      allScenes.forEach(function(s) {{ s.classList.remove('active'); }});
       var sc = document.getElementById('{scene_id}') ||
                document.getElementById('scene-{key}') ||
                document.getElementById('scene_{key}') ||
                allScenes[{idx}];
       if (!sc) return;
       sc.classList.add('active');
-
-      // Collect ALL animated descendants
       var animated = Array.from(sc.querySelectorAll('*'));
-      // Reset animations in one batch, single reflow, then re-enable
       animated.forEach(function(n) {{ n.style.animation = 'none'; }});
-      void sc.offsetWidth;  // single reflow
+      void sc.offsetWidth;
       animated.forEach(function(n) {{
         n.style.animation = '';
         n.style.animationPlayState = 'running';
@@ -171,10 +242,7 @@ def run(project_dir: str, default_clip_dur: int = 8):
   }})();
 </script>"""
 
-                # Inject before </head>
                 standalone_html = anim_source.replace('</head>', inject_css + inject_script + '</head>', 1)
-
-                # Write to a temp file that browser can load via file://
                 scene_html_path = os.path.join(tmp_html, f"scene_{scene_id}.html")
                 with open(scene_html_path, "w", encoding="utf-8") as f:
                     f.write(standalone_html)
@@ -188,18 +256,12 @@ def run(project_dir: str, default_clip_dur: int = 8):
                     record_video_size={"width": rw, "height": rh},
                 )
                 page = context.new_page()
-
-                # Load the per-scene HTML — scene already active in CSS, animations start immediately
                 page.goto(scene_url)
                 try:
                     page.wait_for_load_state("domcontentloaded", timeout=8000)
                 except Exception:
                     pass
-
-                # Small grace period to let first frames render before we start timing
                 time.sleep(0.5)
-
-                # Let the animation play for the full scene duration
                 time.sleep(dur)
 
                 video = page.video
@@ -211,7 +273,6 @@ def run(project_dir: str, default_clip_dur: int = 8):
                     webm_path = max(webms, key=os.path.getmtime) if webms else None
 
                 if webm_path:
-                    # Trim 0.5s loading head, keep exactly dur seconds
                     ff_convert(webm_path, dest, w, h, dur)
                     try:
                         os.remove(webm_path)
