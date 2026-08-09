@@ -147,7 +147,24 @@ def _render_html_thumbnail(html_path: str, out_png: str, width: int = 1280, heig
                 pass
             import time as _time
             _time.sleep(1.0)  # Let CSS animations reach first keyframe
-            page.screenshot(path=out_png, full_page=False)
+
+            # Ensure the thumbnail wrapper is rendered at full target size
+            page.evaluate(
+                "() => {"
+                "  const wrapper = document.querySelector('#thumb-wrap');"
+                "  if (wrapper) {"
+                "    wrapper.style.maxWidth = 'none';"
+                "    wrapper.style.width = '1280px';"
+                "    wrapper.style.height = '720px';"
+                "    wrapper.style.margin = '0';"
+                "  }"
+                "  document.body.style.margin = '0';"
+                "  document.body.style.padding = '0';"
+                "}"
+            )
+
+            thumbnail = page.locator("#thumb-wrap")
+            thumbnail.screenshot(path=out_png)
             browser.close()
         print(f"[thumbnail] Rendered HTML thumbnail -> {out_png}")
         return True
@@ -288,6 +305,28 @@ def main():
     assemble_mod = _import("assemble")
     assemble_mod.run(project_dir)
 
+    def _archive_source_files(source_paths, project_dir):
+        sources_dir = os.path.join(project_dir, "sources")
+        os.makedirs(sources_dir, exist_ok=True)
+        moved = []
+        for src in source_paths:
+            if not src:
+                continue
+            if not os.path.exists(src):
+                continue
+            dest = os.path.join(sources_dir, os.path.basename(src))
+            if os.path.abspath(src) == os.path.abspath(dest):
+                continue
+            shutil.move(src, dest)
+            moved.append(dest)
+        return moved
+
+    source_files = [content_path, animation_path]
+    thumb_gen = os.path.join(input_dir, "thumbnail_generator.html")
+    if os.path.exists(thumb_gen):
+        source_files.append(thumb_gen)
+    moved_sources = _archive_source_files(source_files, project_dir)
+
     import glob
     mp4_files = glob.glob(os.path.join(project_dir, "*.mp4"))
     final_mp4 = mp4_files[0] if mp4_files else os.path.join(project_dir, "video.mp4")
@@ -298,6 +337,10 @@ def main():
     print(f"  Video    : {final_mp4}")
     if copied_thumbnail and os.path.exists(copied_thumbnail):
         print(f"  Thumbnail: {copied_thumbnail}")
+    if moved_sources:
+        print(f"  Sources  : {os.path.join(project_dir, 'sources')}")
+        for p in moved_sources:
+            print(f"    - {p}")
     if os.path.exists(caption_txt):
         print(f"  Caption  : {caption_txt}")
         _open_file(caption_txt)

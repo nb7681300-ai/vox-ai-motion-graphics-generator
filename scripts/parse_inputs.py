@@ -57,6 +57,12 @@ def parse_content_md(content_path: str) -> dict:
             return float(parts[0]) * 60 + float(parts[1])
         return float(time_str)
 
+    def is_markdown_field_line(line: str) -> bool:
+        text = line.strip()
+        if not text.startswith("**") or ":" not in text:
+            return False
+        return not re.match(r'^\*\*(?:L\u1eddi b\u00ecnh|voice-over|VO)[^*]*\*\*\s*:?', text, re.IGNORECASE)
+
     if matches:
         for i, match in enumerate(matches):
             scene_num = int(match.group(1))
@@ -109,7 +115,7 @@ def parse_content_md(content_path: str) -> dict:
                         cleaned = line_str.lstrip(">").strip()
                         if cleaned:
                             narr_lines.append(cleaned)
-                    elif line_str.startswith("- **") or line_str.startswith("#"):
+                    elif line_str.startswith("- **") or line_str.startswith("#") or is_markdown_field_line(line_str):
                         # Stop if hit next field or header
                         break
                     elif line_str and not line_str.startswith("-"):
@@ -130,7 +136,9 @@ def parse_content_md(content_path: str) -> dict:
                             clean_test = clean_test.replace(w, '')
                         if len(clean_test) == 0:
                             continue
-                        if not first_line.startswith("- **") and not first_line.startswith("#"):
+                        if first_line.startswith("#") or is_markdown_field_line(first_line):
+                            break
+                        if not first_line.startswith("- **"):
                             cleaned = first_line.strip('"“\'”')
                             if cleaned:
                                 narr_lines.append(cleaned)
