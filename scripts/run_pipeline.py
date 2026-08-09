@@ -148,10 +148,10 @@ def _render_html_thumbnail(html_path: str, out_png: str, width: int = 1280, heig
             import time as _time
             _time.sleep(1.0)  # Let CSS animations reach first keyframe
 
-            # Ensure the thumbnail wrapper is rendered at full target size
+            # Ensure the thumbnail area is rendered at full target size
             page.evaluate(
                 "() => {"
-                "  const wrapper = document.querySelector('#thumb-wrap');"
+                "  const wrapper = document.querySelector('#thumb-wrap, #thumb');"
                 "  if (wrapper) {"
                 "    wrapper.style.maxWidth = 'none';"
                 "    wrapper.style.width = '1280px';"
@@ -163,8 +163,11 @@ def _render_html_thumbnail(html_path: str, out_png: str, width: int = 1280, heig
                 "}"
             )
 
-            thumbnail = page.locator("#thumb-wrap")
-            thumbnail.screenshot(path=out_png)
+            thumbnail = page.locator("#thumb-wrap, #thumb")
+            if thumbnail.count() > 0:
+                thumbnail.first.screenshot(path=out_png)
+            else:
+                page.screenshot(path=out_png, full_page=False)
             browser.close()
         print(f"[thumbnail] Rendered HTML thumbnail -> {out_png}")
         return True
