@@ -35,6 +35,98 @@ def _slugify(text: str) -> str:
     ascii_str = re.sub(r"[^a-z0-9]+", "-", ascii_str)
     return ascii_str.strip("-")
 
+VIE_HASHTAG_STOPWORDS = {
+    "và", "va", "của", "cua", "cho", "những", "nhung", "một", "mot",
+    "là", "la", "với", "voi", "như", "nhu", "trong", "tren", "có", "co",
+    "mà", "ma", "này", "nay", "đã", "da", "nếu", "neu", "vì", "vi",
+    "hay", "hoặc", "hoac", "như", "nhu", "để", "de", "không", "khong",
+    "mình", "minh", "họ", "ho", "còn", "con", "vẫn", "van", "đang", "dang",
+}
+
+UNWANTED_HASHTAGS = {
+    "kichbanlong", "kichban", "long", "video", "hoathinh", "nguoique",
+    "luong", "lua", "dong", "thuyet", "truyen"
+}
+
+
+def _normalize_for_hashtag(text: str) -> str:
+    text = unicodedata.normalize("NFD", text or "")
+    text = "".join(c for c in text if unicodedata.category(c) != "Mn")
+    text = text.replace("Đ", "D").replace("đ", "d")
+    text = re.sub(r"[^A-Za-z0-9\s]+", " ", text)
+    text = re.sub(r"\s+", " ", text).strip()
+    return text
+
+
+def _tokenize_for_hashtag(text: str) -> list[str]:
+    text = _normalize_for_hashtag(text).lower()
+    tokens = [t for t in re.findall(r"[A-Za-z0-9]+", text) if t and t not in VIE_HASHTAG_STOPWORDS]
+    return tokens
+
+
+def _make_hashtag(words: list[str]) -> str | None:
+    if not words:
+        return None
+    return "#" + "".join(w.capitalize() for w in words if w)
+
+
+def _build_caption_hashtags(doc: dict, beats: list[dict]) -> str:
+    topic = doc.get("topic", "").strip()
+    description = doc.get("description", "").strip() or doc.get("message", "").strip()
+
+    candidates = []
+    if topic:
+        parts = re.split(r"\s*và\s+|\s+va\s+|,|;|:|\s+-\s+|—|–", topic, flags=re.IGNORECASE)
+        for part in parts:
+            tokens = _tokenize_for_hashtag(part)
+            if tokens:
+                candidates.append(tokens[:3])
+    if not candidates and topic:
+        topic_tokens = _tokenize_for_hashtag(topic)
+        if topic_tokens:
+            candidates.append(topic_tokens[:3])
+
+    if description:
+        desc_tokens = _tokenize_for_hashtag(description)
+        if desc_tokens:
+            candidates.append(desc_tokens[:3])
+
+    for beat in beats[:3]:
+        title = beat.get("title") or beat.get("scene") or beat.get("narration", "")
+        if title:
+            beat_tokens = _tokenize_for_hashtag(title)
+            if beat_tokens:
+                candidates.append(beat_tokens[:3])
+
+    tags = []
+    for token_group in candidates:
+        tag = _make_hashtag(token_group)
+        if tag:
+            tag_key = tag[1:].lower()
+            if tag_key not in UNWANTED_HASHTAGS and tag not in tags:
+                tags.append(tag)
+        if len(tags) >= 3:
+            break
+
+    if len(tags) < 3:
+        extra_tokens = []
+        for text in (topic, description):
+            extra_tokens.extend(_tokenize_for_hashtag(text))
+        for token in extra_tokens:
+            tag = _make_hashtag([token])
+            if tag:
+                tag_key = tag[1:].lower()
+                if tag_key not in UNWANTED_HASHTAGS and tag not in tags:
+                    tags.append(tag)
+            if len(tags) >= 3:
+                break
+
+    while len(tags) < 3:
+        tags.append("#CauChuyen")
+
+    tags.append("#CauChuyen_YNghia")
+    return ", ".join(tags)
+
 def ff(args):
     subprocess.run(["ffmpeg", "-y", "-loglevel", "error", *args], check=True)
 
@@ -389,8 +481,10 @@ def run(project_dir):
                 sentences[idx] = sentences[idx][0].upper() + sentences[idx][1:]
         description = "".join(sentences)
 
+    hashtags = _build_caption_hashtags(doc, beats)
     with open(caption_path, "w", encoding="utf-8") as cap_f:
         cap_f.write(description + "\n")
+        cap_f.write(hashtags + "\n")
     print(f"Caption written  -> {caption_path}")
 
     print(f"Assembly finished -> {final_mp4}")
