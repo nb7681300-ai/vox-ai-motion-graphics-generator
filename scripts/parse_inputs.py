@@ -41,6 +41,13 @@ def parse_content_md(content_path: str) -> dict:
         bq_match = re.search(r'>\s*["\u201c]?([^"\u201d\n]{15,})["\u201d]?', text)
         description = bq_match.group(1).strip().strip('"\u201c\u201d\u2018\u2019').strip('|').strip() if bq_match else ""
 
+    origin_match = re.search(
+        r'^\s*(?:[-*]\s*)?(?:Nguồn gốc|Nguon goc|Source|Origin)\s*:\s*(.+?)\s*$',
+        text,
+        re.IGNORECASE | re.MULTILINE,
+    )
+    origin = origin_match.group(1).strip() if origin_match else ""
+
     # Split text into scene sections (flexible to any title/timing order on "##/###/#### Cảnh N" lines)
     scene_pattern = re.compile(
         r'^#{2,4}\s*(?:C[\u1EA3\u1EA2A]NH|C\u1EA3nh|Scene)\s*(\d+)([^\n]*)',
@@ -230,6 +237,7 @@ def parse_content_md(content_path: str) -> dict:
     return {
         "topic": full_topic,
         "description": description,
+        "origin": origin,
         "language": "vi",
         "aspect": "16:9",
         "theme": "stickman",

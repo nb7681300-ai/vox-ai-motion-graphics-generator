@@ -76,22 +76,42 @@ def _make_hashtag(words: list[str]) -> str | None:
     return "#" + "".join(w.capitalize() for w in words if w)
 
 
+def _story_title_for_hashtag(topic: str) -> str:
+    title = re.sub(r"\s*\([^)]*\)\s*$", "", topic or "").strip()
+    prefix_match = re.match(
+        r"^(?:kịch\s+bản|video|hoạt\s+hình|người\s+que|lồng\s+tiếng|ngụ\s+ngôn|thần\s+thoại|truyện|tập|phần\s+\d+|\s)+:\s*",
+        title,
+        re.IGNORECASE,
+    )
+    if prefix_match:
+        title = title[prefix_match.end():].strip()
+    for separator in ("—", "–", " - "):
+        if separator in title:
+            title = title.split(separator, 1)[0].strip()
+    return title
+
+
+def _message_hashtag(description: str) -> str | None:
+    first_clause = re.split(r"[,;.!?]", description, maxsplit=1)[0]
+    words = re.findall(r"[A-Za-z0-9]+", _normalize_for_hashtag(first_clause))
+    return _make_hashtag(words)
+
+
 def _build_caption_hashtags(doc: dict, beats: list[dict]) -> str:
     topic = doc.get("topic", "").strip()
     description = doc.get("description", "").strip() or doc.get("message", "").strip()
+    origin = (doc.get("origin", "") or doc.get("source", "")).strip()
 
-    story_title_tokens = re.findall(r"[A-Za-z0-9]+", _normalize_for_hashtag(topic))
+    story_title = _story_title_for_hashtag(topic)
+    story_title_tokens = re.findall(r"[A-Za-z0-9]+", _normalize_for_hashtag(story_title))
     if not story_title_tokens and beats:
         story_title_tokens = re.findall(
             r"[A-Za-z0-9]+",
             _normalize_for_hashtag(beats[0].get("title") or beats[0].get("scene", "")),
         )
 
+    message_tag = _message_hashtag(description) if description else None
     candidates = []
-    if description:
-        desc_tokens = _tokenize_for_hashtag(description)
-        if desc_tokens:
-            candidates.append(desc_tokens[:3])
 
     for beat in beats[:3]:
         title = beat.get("title") or beat.get("scene") or beat.get("narration", "")
@@ -104,16 +124,20 @@ def _build_caption_hashtags(doc: dict, beats: list[dict]) -> str:
     story_tag = _make_hashtag(story_title_tokens)
     if story_tag:
         tags.append(story_tag)
-    tags.append("#NguonGocCuaCauChuyen")
+    origin_tag = _make_hashtag(re.findall(r"[A-Za-z0-9]+", _normalize_for_hashtag(origin)))
+    tags.append(origin_tag or "#NguonGocCuaCauChuyen")
+    if message_tag:
+        tags.append(message_tag)
 
-    for token_group in candidates:
-        tag = _make_hashtag(token_group)
-        if tag:
-            tag_key = tag[1:].lower()
-            if tag_key not in UNWANTED_HASHTAGS and tag.lower() not in {item.lower() for item in tags}:
-                tags.append(tag)
-        if len(tags) >= 3:
-            break
+    if len(tags) < 3:
+        for token_group in candidates:
+            tag = _make_hashtag(token_group)
+            if tag:
+                tag_key = tag[1:].lower()
+                if tag_key not in UNWANTED_HASHTAGS and tag.lower() not in {item.lower() for item in tags}:
+                    tags.append(tag)
+            if len(tags) >= 3:
+                break
 
     if len(tags) < 3:
         extra_tokens = []
