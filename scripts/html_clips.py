@@ -32,16 +32,64 @@ RECORD_SCALE = 0.5
 
 
 
+def _run_ffmpeg(args):
+    try:
+        return subprocess.run(args, check=True, capture_output=True, text=True)
+    except subprocess.CalledProcessError as e:
+        print(f"[html_clips] ffmpeg failed: {' '.join(args)}")
+        if e.stdout:
+            print(e.stdout)
+        if e.stderr:
+            print(e.stderr)
+        raise
+
+
 def ff_convert(webm: str, dest: str, w: int, h: int, duration: int):
     """Re-encode Playwright WebM to H.264 MP4 at target resolution."""
-    subprocess.run([
+    args = [
         "ffmpeg", "-y", "-i", webm,
         "-vf", f"scale={w}:{h}:flags=lanczos",
         "-t", str(duration),
         "-c:v", "libx264", "-preset", "fast", "-crf", "18",
         "-pix_fmt", "yuv420p",
         dest,
-    ], check=True, stderr=subprocess.DEVNULL)
+    ]
+    try:
+        _run_ffmpeg(args)
+    except subprocess.CalledProcessError as e:
+        stderr = e.stderr or ""
+        if "malloc" in stderr or "Error submitting video frame" in stderr:
+            fallback = [
+                "ffmpeg", "-y", "-i", webm,
+                "-vf", f"scale={w}:{h}:flags=lanczos",
+                "-t", str(duration),
+                "-c:v", "libx264", "-preset", "veryfast", "-crf", "18",
+                "-pix_fmt", "yuv420p",
+                "-threads", "1",
+                dest,
+            ]
+            print("[html_clips] Retrying ffmpeg with lower memory settings...")
+            _run_ffmpeg(fallback)
+        else:
+            raise
+
+
+def _wait_for_file_ready(path: str, timeout: float = 10.0, stable_time: float = 0.5) -> bool:
+    """Wait for a Playwright video file to appear and stabilize."""
+    start = time.time()
+    last_size = -1
+    last_change = time.time()
+    while time.time() - start < timeout:
+        if os.path.exists(path):
+            size = os.path.getsize(path)
+            if size > 1000:
+                if size != last_size:
+                    last_size = size
+                    last_change = time.time()
+                elif time.time() - last_change >= stable_time:
+                    return True
+        time.sleep(0.1)
+    return False
 
 
 def run(project_dir: str, default_clip_dur: int = 8):
@@ -127,9 +175,14 @@ def run(project_dir: str, default_clip_dur: int = 8):
             time.sleep(total_dur)
 
             video = page.video
+            if video:
+                page.close()
             context.close()
 
             webm_path = video.path() if video else None
+            if webm_path and not _wait_for_file_ready(webm_path):
+                time.sleep(0.5)
+
             if not webm_path or not os.path.exists(webm_path):
                 webms = [os.path.join(tmp_webm, f) for f in os.listdir(tmp_webm) if f.endswith(".webm")]
                 webm_path = max(webms, key=os.path.getmtime) if webms else None
@@ -142,12 +195,12 @@ def run(project_dir: str, default_clip_dur: int = 8):
             # Re-encode full WebM to full-res MP4 first (faster to trim from)
             full_mp4 = os.path.join(tmp_webm, "full_timeline.mp4")
             print(f"[html_clips] Encoding full timeline WebM -> MP4...")
-            subprocess.run([
+            _run_ffmpeg([
                 "ffmpeg", "-y", "-i", webm_path,
                 "-vf", f"scale={w}:{h}:flags=lanczos",
                 "-c:v", "libx264", "-preset", "fast", "-crf", "18",
                 "-pix_fmt", "yuv420p", full_mp4,
-            ], check=True, stderr=subprocess.DEVNULL)
+            ])
             try:
                 os.remove(webm_path)
             except Exception:
@@ -175,6 +228,12 @@ def run(project_dir: str, default_clip_dur: int = 8):
                 ], check=True, stderr=subprocess.DEVNULL)
                 beat["clip_path"] = dest
                 print(f"[{key}] saved  {dest}")
+
+            browser.close()
+            with open(bpath, "w", encoding="utf-8") as f:
+                json.dump(doc, f, ensure_ascii=False, indent=2)
+            print(f"Updated {bpath}")
+            return
 
         else:
             # ── SCENE-CLASS MODE: inject CSS per scene, record independently ───────────
@@ -265,14 +324,19 @@ def run(project_dir: str, default_clip_dur: int = 8):
                 time.sleep(dur)
 
                 video = page.video
+                if video:
+                    page.close()
                 context.close()
 
                 webm_path = video.path() if video else None
+                if webm_path and not _wait_for_file_ready(webm_path):
+                    time.sleep(0.5)
+
                 if not webm_path or not os.path.exists(webm_path):
                     webms = [os.path.join(tmp_webm, f) for f in os.listdir(tmp_webm) if f.endswith(".webm")]
                     webm_path = max(webms, key=os.path.getmtime) if webms else None
 
-                if webm_path:
+                if webm_path and _wait_for_file_ready(webm_path):
                     ff_convert(webm_path, dest, w, h, dur)
                     try:
                         os.remove(webm_path)
