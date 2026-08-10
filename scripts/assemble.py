@@ -53,6 +53,12 @@ def _normalize_for_hashtag(text: str) -> str:
     text = unicodedata.normalize("NFD", text or "")
     text = "".join(c for c in text if unicodedata.category(c) != "Mn")
     text = text.replace("Đ", "D").replace("đ", "d")
+    text = re.sub(
+        r"\b\d+(?:[.,]\d+)?\s*(?:giay|giây|s|sec|secs|second|seconds|phut|phút|min|mins|minute|minutes)\b",
+        " ",
+        text,
+        flags=re.IGNORECASE,
+    )
     text = re.sub(r"[^A-Za-z0-9\s]+", " ", text)
     text = re.sub(r"\s+", " ", text).strip()
     return text
@@ -74,18 +80,14 @@ def _build_caption_hashtags(doc: dict, beats: list[dict]) -> str:
     topic = doc.get("topic", "").strip()
     description = doc.get("description", "").strip() or doc.get("message", "").strip()
 
-    candidates = []
-    if topic:
-        parts = re.split(r"\s*và\s+|\s+va\s+|,|;|:|\s+-\s+|—|–", topic, flags=re.IGNORECASE)
-        for part in parts:
-            tokens = _tokenize_for_hashtag(part)
-            if tokens:
-                candidates.append(tokens[:3])
-    if not candidates and topic:
-        topic_tokens = _tokenize_for_hashtag(topic)
-        if topic_tokens:
-            candidates.append(topic_tokens[:3])
+    story_title_tokens = re.findall(r"[A-Za-z0-9]+", _normalize_for_hashtag(topic))
+    if not story_title_tokens and beats:
+        story_title_tokens = re.findall(
+            r"[A-Za-z0-9]+",
+            _normalize_for_hashtag(beats[0].get("title") or beats[0].get("scene", "")),
+        )
 
+    candidates = []
     if description:
         desc_tokens = _tokenize_for_hashtag(description)
         if desc_tokens:
@@ -99,24 +101,29 @@ def _build_caption_hashtags(doc: dict, beats: list[dict]) -> str:
                 candidates.append(beat_tokens[:3])
 
     tags = []
+    story_tag = _make_hashtag(story_title_tokens)
+    if story_tag:
+        tags.append(story_tag)
+    tags.append("#NguonGocCuaCauChuyen")
+
     for token_group in candidates:
         tag = _make_hashtag(token_group)
         if tag:
             tag_key = tag[1:].lower()
-            if tag_key not in UNWANTED_HASHTAGS and tag not in tags:
+            if tag_key not in UNWANTED_HASHTAGS and tag.lower() not in {item.lower() for item in tags}:
                 tags.append(tag)
         if len(tags) >= 3:
             break
 
     if len(tags) < 3:
         extra_tokens = []
-        for text in (topic, description):
+        for text in (description,):
             extra_tokens.extend(_tokenize_for_hashtag(text))
         for token in extra_tokens:
             tag = _make_hashtag([token])
             if tag:
                 tag_key = tag[1:].lower()
-                if tag_key not in UNWANTED_HASHTAGS and tag not in tags:
+                if tag_key not in UNWANTED_HASHTAGS and tag.lower() not in {item.lower() for item in tags}:
                     tags.append(tag)
             if len(tags) >= 3:
                 break
