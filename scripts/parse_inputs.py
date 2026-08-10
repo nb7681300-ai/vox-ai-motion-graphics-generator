@@ -42,7 +42,10 @@ def parse_content_md(content_path: str) -> dict:
         description = bq_match.group(1).strip().strip('"\u201c\u201d\u2018\u2019').strip('|').strip() if bq_match else ""
 
     origin_match = re.search(
-        r'^\s*(?:[-*]\s*)?(?:Nguồn gốc|Nguon goc|Source|Origin)\s*:\s*(.+?)\s*$',
+        r'^\s*(?:(?:-|\*)\s+)?(?:\*\*|__)?\s*'
+        r'(?:Nguồn gốc(?: câu chuyện)?|Nguon goc(?: cau chuyen)?|Source|Origin)'
+        r'\s*(?::\s*(?:\*\*|__)?|(?:\*\*|__)?\s*:)' 
+        r'\s*(.+?)\s*$',
         text,
         re.IGNORECASE | re.MULTILINE,
     )
