@@ -181,7 +181,7 @@ def _open_file(filepath: str):
     import subprocess
     try:
         if sys.platform == "win32":
-            os.startfile(filepath)
+            os.startfile(filepath, "open", None, 5)
         elif sys.platform == "darwin":
             subprocess.run(["open", filepath])
         else:
